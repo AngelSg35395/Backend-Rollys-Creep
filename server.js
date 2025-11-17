@@ -17,7 +17,7 @@ const app = express()
 const port = process.env.PORT || 3000
 
 app.use(cors({
-    origin: 'https://test-nine-sage-86.vercel.app/',
+    origin: process.env.ALLOWED_ORIGIN,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }))
