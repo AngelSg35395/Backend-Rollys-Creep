@@ -22,10 +22,6 @@ export const productValidatorADD = [
         .trim()
         .notEmpty()
         .withMessage("El tipo de producto no puede estar vacío"),
-    body("image_url")
-        .isString()
-        .matches(/^data:image\/(png|jpg|jpeg);base64,/)
-        .withMessage("La URL de la imagen debe ser un string válido")
 ];
 
 export const productValidatorEDIT = [
