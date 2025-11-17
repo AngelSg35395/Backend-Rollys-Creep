@@ -147,15 +147,35 @@ export const HighlightProduct = async (req, res) => {
     const { id } = req.params
     const { highlight } = req.body
 
-    // Update product
-    const { data, error } = await supabase
-        .from('products')
-        .update({ initially_show: highlight })
-        .eq('product_id', id)
-    
-    if (error) {
-        console.log(error)
-        res.status(500).json({ error: 'Error updating product' + error })
+    try {
+        // verify if highlight in db is <= 5
+        const { data: highlightedProducts, error: fetchError } = await supabase
+            .from('products')
+            .select('*')
+            .eq('initially_show', true)
+
+        if (fetchError) {
+            console.log(error)
+            res.status(500).json({ error: 'Error fetching product' + fetchError })
+        }
+
+        if (highlight && highlightedProducts.length >= 5) {
+            return res.status(400).json({ error: 'El máximo de productos destacados (5) ha sido alcanzado' })
+        }
+
+        // Update product
+        const { data, error } = await supabase
+            .from('products')
+            .update({ initially_show: highlight })
+            .eq('product_id', id)
+        
+        if (error) {
+            console.log(error)
+            res.status(500).json({ error: 'Error updating product' + error })
+        }
+        res.json({ message: 'Product updated successfully' })
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({ error: 'Error updating product' + err })
     }
-    res.json({ message: 'Product updated successfully' })
 }

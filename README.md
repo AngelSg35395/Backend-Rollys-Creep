@@ -531,7 +531,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Autenticación:** Requerida (JWT Token)
 
-**Descripción:** Actualiza el estado de destacado inicial de un producto. Permite marcar o desmarcar productos que se mostrarán inicialmente en la aplicación.
+**Descripción:** Actualiza el estado de destacado inicial de un producto. Permite marcar o desmarcar productos que se mostrarán inicialmente en la aplicación, MAXIMO 5 productos destacados.
 
 **Parámetros de URL:**
 - `id` (number, requerido): ID del producto a actualizar
@@ -598,6 +598,13 @@ Content-Type: application/json
 ```json
 {
   "error": "Error updating product[detalles del error]"
+}
+```
+
+**Error (400 Bad Request) - Máximo de destacados alcanzado:**
+```json
+{
+  "error": "El máximo de productos destacados (5) ha sido alcanzado"
 }
 ```
 
