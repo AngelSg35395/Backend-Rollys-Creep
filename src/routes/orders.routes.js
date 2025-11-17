@@ -17,6 +17,6 @@ router.get('/:typePath', verifyToken, getOrders)
 router.put('/edit/:id', verifyToken, orderValidatorEDIT, validationResultHandler, editOrder)
 
 // Add Order
-router.post('/add', verifyToken, orderValidatorADD, validationResultHandler, addOrder)
+router.post('/add', orderValidatorADD, validationResultHandler, addOrder)
 
 export default router

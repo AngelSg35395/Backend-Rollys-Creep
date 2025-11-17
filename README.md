@@ -973,7 +973,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **URL:** `/orders/add`
 
-**Autenticación:** Requerida (JWT Token)
+**Autenticación:** No requerida
 
 **Descripción:** Crea una nueva orden en el sistema. Las órdenes se crean con estado incompleto por defecto. **Al crear una orden, automáticamente se envía una notificación de WhatsApp** al número configurado en `COMPANY_PHONE` con el contenido del mensaje de la orden.
 
@@ -987,14 +987,12 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Headers requeridos:**
 ```
-Authorization: Bearer <tu_token_jwt>
 Content-Type: application/json
 ```
 
 **Ejemplo de petición:**
 ```bash
 POST http://localhost:3000/orders/add
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 
 {
@@ -1008,18 +1006,6 @@ Content-Type: application/json
 ```json
 {
   "message": "Order added successfully"
-}
-```
-
-**Error (401 Unauthorized) - Token no proporcionado o inválido:**
-```json
-{
-  "error": "No token provided"
-}
-```
-```json
-{
-  "error": "Invalid token"
 }
 ```
 
@@ -1443,4 +1429,4 @@ El servidor está configurado para aceptar cuerpos de petición de hasta **50MB*
 
 ---
 
-**Versión del API:** 1.0.1
+**Versión del API:** 1.0.06
