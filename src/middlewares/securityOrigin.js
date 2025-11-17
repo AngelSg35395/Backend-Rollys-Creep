@@ -1,5 +1,5 @@
 const allowedOrigins = [
-    "https://test-six-omega-10.vercel.app",
+    "https://test-nine-sage-86.vercel.app/",
 ]
 
 export function securityOrigin(req, res, next) {
