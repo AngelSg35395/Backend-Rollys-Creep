@@ -39,6 +39,8 @@ TWILIO_PHONE=tu_numero_de_TWILIO
 COMPANY_PHONE=tu_numero_personal
 
 JWT_SECRET=tu_secreto_jwt_para_autenticacion
+
+ALLOWED_ORIGINS=tus_origines
 ```
 
 **Nota sobre Twilio:** Las variables `TWILIO_PHONE` y `COMPANY_PHONE` son necesarias para el envío automático de notificaciones de WhatsApp cuando se crean nuevas órdenes. `TWILIO_PHONE` es el número de teléfono de Twilio (formato: whatsapp:+1234567890) y `COMPANY_PHONE` es el número de destino donde se recibirán las notificaciones (formato: whatsapp:+1234567890).
@@ -72,6 +74,7 @@ api-prueba-xd/
 │   │   ├── supabase.js          # Configuración del cliente de Supabase
 │   │   ├── twilio.js            # Configuración de Twilio para notificaciones en pedidos
 │   │   └── uploadImage.js       # Utilidades para subida de imágenes
+│   │   └── orderMessage.js      # Función para preparar mensaje de órdenes en WhatsApp y almacenamiento en la base de datos
 │   │
 │   ├── controllers/
 │   │   ├── rootController.js           # Controlador de la ruta raíz
@@ -129,7 +132,7 @@ La API está organizada en las siguientes categorías:
 La API utiliza autenticación basada en tokens JWT (JSON Web Tokens) para proteger los endpoints que requieren permisos de administrador. 
 
 **Endpoints que requieren autenticación:**
-- Todos los endpoints POST, PUT y DELETE (crear, editar, eliminar)
+- Todos los endpoints POST, PUT y DELETE (crear, editar, eliminar), excepto `POST /orders/add` y `POST /administrators/login`
 - GET `/orders/:typePath` - Obtener órdenes
 - GET `/administrators` - Obtener administradores
 
@@ -137,6 +140,7 @@ La API utiliza autenticación basada en tokens JWT (JSON Web Tokens) para proteg
 - GET `/` - Mensaje de bienvenida
 - GET `/products/:typePath` - Obtener productos
 - GET `/companions` - Obtener acompañantes
+- POST `/orders/add` - Agregar orden
 - POST `/administrators/login` - Iniciar sesión
 
 **Cómo usar la autenticación:**
@@ -975,15 +979,31 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Autenticación:** No requerida
 
-**Descripción:** Crea una nueva orden en el sistema. Las órdenes se crean con estado incompleto por defecto. **Al crear una orden, automáticamente se envía una notificación de WhatsApp** al número configurado en `COMPANY_PHONE` con el contenido del mensaje de la orden.
+**Descripción:** Crea una nueva orden en el sistema. Las órdenes se crean con estado incompleto por defecto. **Al crear una orden, automáticamente se envía una notificación de WhatsApp** al número configurado en `COMPANY_PHONE` con un mensaje formateado que incluye los datos del cliente, información del pedido y detalles del carrito de compras.
 
 **Cuerpo de la petición (JSON):**
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `order_msg` | string | Sí | Mensaje o descripción de la orden (mínimo 3 caracteres) |
+| `client_name` | string | Sí | Nombre del cliente (entre 3 y 20 caracteres) |
+| `client_email` | string (email) | Sí | Email del cliente (entre 5 y 50 caracteres, debe ser un email válido) |
+| `client_phone` | string | Sí | Teléfono del cliente (entre 3 y 20 caracteres) |
+| `delivery_date` | string (fecha) | Sí | Fecha de entrega/recogida de la orden (formato de fecha válido) |
+| `payment_method` | string | Sí | Método de pago (entre 3 y 20 caracteres) |
+| `cart_items` | array | Sí | Array de items del carrito de compras (no puede estar vacío) |
 
-**Nota:** Otros campos como `order_state` y `created_at` son manejados automáticamente por la base de datos.
+**Estructura de `cart_items`:**
+Cada item del array debe tener la siguiente estructura:
+```json
+{
+  "name": "string",           // Nombre del producto
+  "quantity": number,         // Cantidad del producto
+  "price": number,            // Precio unitario del producto
+  "complements": "string"     // Opcional: Complementos o acompañantes del producto
+}
+```
+
+**Nota:** El campo `order_msg` se genera automáticamente a partir de los datos proporcionados y se almacena en la base de datos. Otros campos como `order_state` y `created_at` son manejados automáticamente por la base de datos.
 
 **Headers requeridos:**
 ```
@@ -996,7 +1016,24 @@ POST http://localhost:3000/orders/add
 Content-Type: application/json
 
 {
-  "order_msg": "Café Americano grande con leche y azúcar"
+  "client_name": "Juan Pérez",
+  "client_email": "juan.perez@example.com",
+  "client_phone": "+1234567890",
+  "delivery_date": "2024-01-20",
+  "payment_method": "Efectivo",
+  "cart_items": [
+    {
+      "name": "Frappe de Chocolate",
+      "quantity": 2,
+      "price": 8.99,
+      "complements": "Leche, Azúcar"
+    },
+    {
+      "name": "Rollos de Canela",
+      "quantity": 1,
+      "price": 12.50
+    }
+  ]
 }
 ```
 
@@ -1015,8 +1052,14 @@ Content-Type: application/json
   "errors": [
     {
       "type": "field",
-      "msg": "El mensaje de la orden no puede estar vacío",
-      "path": "order_msg",
+      "msg": "El nombre del cliente no puede estar vacío",
+      "path": "client_name",
+      "location": "body"
+    },
+    {
+      "type": "field",
+      "msg": "El email del cliente debe tener entre 5 y 50 caracteres",
+      "path": "client_email",
       "location": "body"
     }
   ]
@@ -1026,7 +1069,7 @@ Content-Type: application/json
 **Error (500 Internal Server Error):**
 ```json
 {
-  "error": "Error adding order[detalles del error]"
+  "error": "Error adding order: [detalles del error]"
 }
 ```
 
@@ -1038,8 +1081,13 @@ Content-Type: application/json
 ```
 
 **Validaciones y Reglas:**
-- `order_msg`: Debe ser un string no vacío con al menos 3 caracteres. Se trima automáticamente.
-- **Notificación automática**: Al crear una orden, se envía automáticamente un mensaje de WhatsApp con el contenido de `order_msg` al número configurado en `COMPANY_PHONE`. Si el envío del mensaje falla, la orden se guarda en la base de datos pero se retorna un error 500 indicando que el mensaje de WhatsApp no pudo ser enviado.
+- `client_name`: Debe ser un string no vacío con entre 3 y 20 caracteres. Se trima automáticamente.
+- `client_email`: Debe ser un email válido con entre 5 y 50 caracteres. Se trima automáticamente.
+- `client_phone`: Debe ser un string no vacío con entre 3 y 20 caracteres. Se trima automáticamente.
+- `delivery_date`: Debe ser una fecha válida y no puede estar vacía.
+- `payment_method`: Debe ser un string no vacío con entre 3 y 20 caracteres. Se trima automáticamente.
+- `cart_items`: Debe ser un array no vacío. Cada item debe contener `name`, `quantity` y `price`. El campo `complements` es opcional.
+- **Notificación automática**: Al crear una orden, se envía automáticamente un mensaje de WhatsApp formateado al número configurado en `COMPANY_PHONE`. El mensaje incluye los datos del cliente, fecha de recogida, método de pago, detalles del carrito (con cantidades, precios y subtotales) y el total de la orden. Si el envío del mensaje falla, la orden se guarda en la base de datos pero se retorna un error 500 indicando que el mensaje de WhatsApp no pudo ser enviado.
 
 ---
 
@@ -1345,7 +1393,6 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
 - `PUT /companions/edit/:id` - Editar acompañante
 - `DELETE /companions/delete/:id` - Eliminar acompañante
 - `GET /orders/:typePath` - Obtener órdenes
-- `POST /orders/add` - Agregar orden
 - `PUT /orders/edit/:id` - Editar orden
 - `GET /administrators` - Obtener administradores
 - `DELETE /administrators/delete/:admin_code` - Eliminar administrador
@@ -1354,6 +1401,7 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
 - `GET /` - Mensaje de bienvenida
 - `GET /products/:typePath` - Obtener productos
 - `GET /companions` - Obtener acompañantes
+- `POST /orders/add` - Agregar orden
 - `POST /administrators/login` - Iniciar sesión
 
 ### 1.10.2. Rate Limiting
@@ -1378,7 +1426,14 @@ Asegúrate de configurar las siguientes variables de entorno:
 
 ### 1.10.4. Notificaciones de WhatsApp
 
-La API integra notificaciones automáticas de WhatsApp mediante Twilio. Cuando se crea una nueva orden mediante el endpoint `POST /orders/add`, se envía automáticamente un mensaje de WhatsApp al número configurado en `COMPANY_PHONE` con el contenido del mensaje de la orden (`order_msg`).
+La API integra notificaciones automáticas de WhatsApp mediante Twilio. Cuando se crea una nueva orden mediante el endpoint `POST /orders/add`, se envía automáticamente un mensaje de WhatsApp al número configurado en `COMPANY_PHONE` con un mensaje formateado que incluye:
+
+- **Datos del cliente**: Nombre, email y teléfono
+- **Información del pedido**: Fecha de recogida y método de pago
+- **Detalles del carrito**: Lista de productos con cantidades, precios unitarios, subtotales y complementos (si aplica)
+- **Total de la orden**: Suma total de todos los items del carrito
+
+El mensaje se genera automáticamente usando la función `prepareOrderMessage` y se almacena en el campo `order_msg` de la base de datos.
 
 **Comportamiento:**
 - Si el envío del mensaje de WhatsApp falla, la orden se guarda en la base de datos pero se retorna un error 500 indicando que el mensaje no pudo ser enviado.
@@ -1409,8 +1464,14 @@ La API integra notificaciones automáticas de WhatsApp mediante Twilio. Cuando s
 - `extra_price`: Numérico, puede ser 0, requerido al agregar
 
 #### 1.11.2.3. Órdenes
-- `order_msg`: Requerido al agregar, mínimo 3 caracteres
+- `client_name`: Requerido al agregar, entre 3 y 20 caracteres
+- `client_email`: Requerido al agregar, email válido entre 5 y 50 caracteres
+- `client_phone`: Requerido al agregar, entre 3 y 20 caracteres
+- `delivery_date`: Requerido al agregar, debe ser una fecha válida
+- `payment_method`: Requerido al agregar, entre 3 y 20 caracteres
+- `cart_items`: Requerido al agregar, array no vacío. Cada item debe contener `name`, `quantity` y `price`. El campo `complements` es opcional
 - `order_state`: Booleano requerido para editar
+- **Nota**: El campo `order_msg` se genera automáticamente a partir de los datos del cliente y del carrito de compras
 
 #### 1.11.2.4. Administradores
 - `account_name`: Requerido para login, entre 5 y 15 caracteres

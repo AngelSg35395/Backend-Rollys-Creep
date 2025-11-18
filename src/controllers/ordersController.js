@@ -1,5 +1,6 @@
 import supabase from '../config/supabase.js'
 import { sendMessageToWhatsapp } from '../config/twilio.js'
+import { prepareOrderMessage } from '../config/orderMessage.js'
 
 export const getOrders = async (req, res) => {
     // Get order type fetched from the URL
@@ -46,7 +47,22 @@ export const editOrder = async (req, res) => {
 }
 
 export const addOrder = async (req, res) => {
-    const order = req.body
+    const { client_name, client_email, client_phone, delivery_date, payment_method, cart_items } = req.body
+
+    // Prepare order message
+    const orderMessage = prepareOrderMessage({
+        client_name,
+        client_email,
+        client_phone,
+        delivery_date,
+        payment_method,
+        cart_items
+    })
+
+    // Create order object for database
+    const order = {
+        order_msg: orderMessage
+    }
 
     // Add order to the database
     const { data, error } = await supabase
@@ -55,7 +71,7 @@ export const addOrder = async (req, res) => {
 
     if (error) {
         console.log(error)
-        res.status(500).json({ error: 'Error adding order' + error.message })
+        return res.status(500).json({ error: 'Error adding order: ' + error.message })
     }
 
     // Send WhatsApp message
@@ -63,7 +79,7 @@ export const addOrder = async (req, res) => {
         await sendMessageToWhatsapp(order.order_msg);
     } catch (err) {
         console.log('WhatsApp message error:', err.message)
-        res.status(500).json({ error: 'Order saved but WhatsApp message failed: ' + err.message })
+        return res.status(500).json({ error: 'Order saved but WhatsApp message failed: ' + err.message })
     }
 
     res.json({ message: 'Order added successfully' })
