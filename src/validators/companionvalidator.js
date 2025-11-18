@@ -9,9 +9,8 @@ export const companionValidatorADD = [
         .withMessage("El nombre del acompañante no puede estar vacío"),
     body("extra_price")
         .isNumeric()
-        .min(0)
-        .max(1000)
-        .withMessage("El precio extra debe ser un número"),
+        .isFloat({ min: 0, max: 1000 })
+        .withMessage("El precio extra debe ser un número entre 0 y 1000"),
 ];
 
 export const companionValidatorEDIT = [
@@ -24,8 +23,7 @@ export const companionValidatorEDIT = [
     body("extra_price")
         .optional()
         .isNumeric()
-        .min(0)
-        .max(1000)
-        .withMessage("El precio extra debe ser un número"),
+        .isFloat({ min: 0, max: 1000 })
+        .withMessage("El precio extra debe ser un número entre 0 y 1000"),
 ];
 

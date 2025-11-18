@@ -16,9 +16,8 @@ export const productValidatorADD = [
     body("price")
         .notEmpty()
         .isNumeric()
-        .min(0)
-        .max(1000)
-        .withMessage("El precio del producto no puede estar vacío"),
+        .isFloat({ min: 0, max: 1000 })
+        .withMessage("El precio del producto debe ser un número entre 0 y 1000"),
     body("product_type")
         .isString()
         .trim()
@@ -42,9 +41,8 @@ export const productValidatorEDIT = [
     body("price")
         .optional()
         .isNumeric()
-        .min(0)
-        .max(1000)
-        .withMessage("El precio del producto debe ser un número"),
+        .isFloat({ min: 0, max: 1000 })
+        .withMessage("El precio del producto debe ser un número entre 0 y 1000"),
     body("product_type")
         .optional()
         .isString()
