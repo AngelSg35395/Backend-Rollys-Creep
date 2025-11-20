@@ -23,6 +23,10 @@ export const productValidatorADD = [
         .trim()
         .notEmpty()
         .withMessage("El tipo de producto no puede estar vacío"),
+    body("product_sizes")
+        .isArray()
+        .notEmpty()
+        .withMessage("El tamaño del producto no puede estar vacío"),
 ];
 
 export const productValidatorEDIT = [
@@ -49,6 +53,11 @@ export const productValidatorEDIT = [
         .trim()
         .notEmpty()
         .withMessage("El tipo de producto no puede estar vacío"),
+    body("product_sizes")
+        .optional()
+        .isArray()
+        .notEmpty()
+        .withMessage("El tamaño del producto no puede estar vacío"),
 ];
 
 export const productValidatorHIGHLIGHT = [

@@ -69,6 +69,7 @@ export const editProduct = async (req, res) => {
             description,
             price,
             product_type,
+            product_sizes,
             image_url: finalImageUrl
         }
 
@@ -108,7 +109,7 @@ export const deleteProduct = async (req, res) => {
 
 export const addProduct = async (req, res) => {
     try {
-        const { image_url, name, description, price, product_type } = req.body;
+        const { image_url, name, description, price, product_type, product_sizes } = req.body;
 
         // Upload image
         const uploadedImageUrl = await uploadImageFromUrl(image_url);
@@ -123,6 +124,7 @@ export const addProduct = async (req, res) => {
             description,
             price,
             product_type,
+            product_sizes,
             image_url: uploadedImageUrl
         };
 
