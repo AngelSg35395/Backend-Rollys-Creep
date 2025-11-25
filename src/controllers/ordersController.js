@@ -38,6 +38,7 @@ export const editOrder = async (req, res) => {
         .from('orders')
         .update({ order_state: order_state })
         .eq('order_id', id)
+        .order('created_at', { ascending: true })
 
     if (error) {
         console.log(error)
