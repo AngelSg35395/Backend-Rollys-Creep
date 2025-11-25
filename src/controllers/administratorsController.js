@@ -56,7 +56,8 @@ export const loginAdmin = async (req, res) => {
         // Create JWT
         const token = jwt.sign(
             { admin_code: data.admin_code },
-            process.env.JWT_SECRET
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
         )
 
         return res.json({ token, message: 'Login successful' })
