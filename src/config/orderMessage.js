@@ -6,17 +6,30 @@
 export function prepareOrderMessage({ client_name, client_email, client_phone, delivery_date, payment_method, cart_items }) {
     // Create items summary
     const itemsSummary = cart_items.map((item) => {
-        const complementsText = item.complements ? ` (Complementos: ${item.complements})` : '';
+        const complementsText = item.complements ? ` (${item.complements})` : '';
         const lineTotal = item.price * item.quantity;
-        return `- ${item.quantity} x ${item.name} de tamaño ${item.product_size} con ${complementsText} - $${item.price.toFixed(2)} c/u, Subtotal: $${lineTotal.toFixed(2)}`;
-    }).join('\n');
+        return `• ${item.quantity} x ${item.name} (${item.product_size}${complementsText})\n    Precio unitario: $${item.price.toFixed(2)}\n    Subtotal: $${lineTotal.toFixed(2)}`;
+    }).join('\n\n');
 
     // Calculate total
     const total = cart_items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    // Build order message
-    const orderMessage = `Nuevo pedido\n\nDatos del cliente:\n- Nombre: ${client_name}\n- Email: ${client_email}\n- Teléfono: ${client_phone}\n- Fecha de recogida: ${delivery_date}\n- Método de pago: ${payment_method}\n\nCarrito:\n${itemsSummary || '- (vacío)'}\n\nTotal: $${total.toFixed(2)}`;
+    // Build improved order message
+    const orderMessage =
+        `🧾 *Nuevo pedido recibido* 🧾
+
+        👤 *Datos del cliente*
+        — Nombre: ${client_name}
+        — Email: ${client_email}
+        — Teléfono: ${client_phone}
+        — Fecha de recogida: ${delivery_date}
+        — Método de pago: ${payment_method}
+
+        🛒 *Productos solicitados*
+        ${itemsSummary || '— (ningún producto en el carrito)'}
+
+        💰 *Total a pagar:* $${total.toFixed(2)}
+`;
 
     return orderMessage;
 }
-
