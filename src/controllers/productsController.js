@@ -30,7 +30,7 @@ export const getProductsType = async (req, res) => {
 
 export const editProduct = async (req, res) => {
     const { id } = req.params
-    const { image_url, name, description, price, product_type } = req.body
+    const { image_url, name, description, price, product_type, product_sizes } = req.body
 
     try {
         // Verify if product exists
