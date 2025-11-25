@@ -4,6 +4,7 @@ import { productValidatorADD, productValidatorEDIT, productValidatorHIGHLIGHT } 
 import { verifyToken } from '../middlewares/verifyToken.js'
 import { 
     getProductsType,
+    searchSizes,
     editProduct,
     deleteProduct,
     addProduct,
@@ -14,6 +15,9 @@ const router = express.Router()
 
 // Get Products
 router.get('/:typePath', getProductsType)
+
+// Search Sizes
+router.get('/searchSizes/:id', searchSizes)
 
 // Edit Product
 router.put('/edit/:id', verifyToken, productValidatorEDIT, validationResultHandler, editProduct)

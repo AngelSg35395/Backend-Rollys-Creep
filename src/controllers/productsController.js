@@ -181,3 +181,24 @@ export const HighlightProduct = async (req, res) => {
         res.status(500).json({ error: 'Error updating product' + err })
     }
 }
+
+export const searchSizes = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const { data, error } = await supabase
+            .from('products_sizes')
+            .select('*')
+            .eq('product_id', id)
+
+        if (error) {
+            console.log(error)
+            res.status(500).json({ error: 'Error fetching product' + error })
+        }
+
+        res.json(data)
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({ error: 'Error fetching product' + error })
+    }
+}
