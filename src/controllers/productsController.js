@@ -187,7 +187,7 @@ export const searchSizes = async (req, res) => {
 
     try {
         const { data, error } = await supabase
-            .from('products_sizes')
+            .from('product_sizes')
             .select('*')
             .eq('product_id', id)
 
