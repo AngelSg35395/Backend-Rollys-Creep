@@ -8,7 +8,7 @@ export function prepareOrderMessage({ client_name, client_email, client_phone, d
     const itemsSummary = cart_items.map((item) => {
         const complementsText = item.complements ? ` (Complementos: ${item.complements})` : '';
         const lineTotal = item.price * item.quantity;
-        return `- ${item.quantity} x ${item.name}${complementsText} - $${item.price.toFixed(2)} c/u, Subtotal: $${lineTotal.toFixed(2)}`;
+        return `- ${item.quantity} x ${item.name} de tamaño ${item.product_size} con ${complementsText} - $${item.price.toFixed(2)} c/u, Subtotal: $${lineTotal.toFixed(2)}`;
     }).join('\n');
 
     // Calculate total
