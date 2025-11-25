@@ -15,20 +15,19 @@ export function prepareOrderMessage({ client_name, client_email, client_phone, d
     const total = cart_items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     // Build improved order message
-    const orderMessage =
-        `🧾 *Nuevo pedido recibido* 🧾
+    const orderMessage =`
+    🧾 *Nuevo pedido* 🧾
+    👤 *Datos del cliente*
+— Nombre: ${client_name}
+— Email: ${client_email}
+— Teléfono: ${client_phone}
+— Fecha de recogida: ${delivery_date}
+— Método de pago: ${payment_method}
 
-        👤 *Datos del cliente*
-        — Nombre: ${client_name}
-        — Email: ${client_email}
-        — Teléfono: ${client_phone}
-        — Fecha de recogida: ${delivery_date}
-        — Método de pago: ${payment_method}
+    🛒 *Productos solicitados*
+${itemsSummary || '— (ningún producto en el carrito)'}
 
-        🛒 *Productos solicitados*
-        ${itemsSummary || '— (ningún producto en el carrito)'}
-
-        💰 *Total a pagar:* $${total.toFixed(2)}
+💰 *Total a pagar:* $${total.toFixed(2)}
 `;
 
     return orderMessage;
