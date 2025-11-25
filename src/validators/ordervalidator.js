@@ -24,6 +24,12 @@ export const orderValidatorADD = [
         .trim()
         .notEmpty()
         .withMessage("La fecha de entrega no puede estar vacía"),
+    body("delivery_time")
+        .isString()
+        .trim()
+        .notEmpty()
+        .isLength({ min: 3, max: 20 })
+        .withMessage("La hora de entrega no puede estar vacía"),
     body("payment_method")
         .isString()
         .trim()

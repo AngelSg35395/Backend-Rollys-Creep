@@ -3,7 +3,7 @@
  * @description Function to prepare order message for WhatsApp and database
  */
 
-export function prepareOrderMessage({ client_name, client_email, client_phone, delivery_date, payment_method, cart_items }) {
+export function prepareOrderMessage({ client_name, client_email, client_phone, delivery_date, delivery_time, payment_method, cart_items }) {
     // Create items summary
     const itemsSummary = cart_items.map((item) => {
         let complementsText = '';
@@ -29,6 +29,7 @@ export function prepareOrderMessage({ client_name, client_email, client_phone, d
 — Email: ${client_email}
 — Teléfono: ${client_phone}
 — Fecha de recogida: ${delivery_date}
+— Hora de recogida: ${delivery_time}
 — Método de pago: ${payment_method}
 
     🛒 *Productos solicitados*

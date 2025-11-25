@@ -48,7 +48,7 @@ export const editOrder = async (req, res) => {
 }
 
 export const addOrder = async (req, res) => {
-    const { client_name, client_email, client_phone, delivery_date, payment_method, cart_items } = req.body
+    const { client_name, client_email, client_phone, delivery_date, delivery_time, payment_method, cart_items } = req.body
 
     // Prepare order message
     const orderMessage = prepareOrderMessage({
@@ -56,6 +56,7 @@ export const addOrder = async (req, res) => {
         client_email,
         client_phone,
         delivery_date,
+        delivery_time,
         payment_method,
         cart_items
     })
