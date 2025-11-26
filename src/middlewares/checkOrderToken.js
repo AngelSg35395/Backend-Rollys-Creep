@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
 export const checkOrderToken = (req, res, next) => {
-    const token = req.headers["x-order-token"];
+    const token = req.headers["x-order-key"];
 
     if (!token) {
         return res.status(401).json({ error: "Missing order token" });
