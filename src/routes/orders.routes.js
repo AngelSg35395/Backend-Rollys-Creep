@@ -1,8 +1,9 @@
 import express from 'express'
 import { validationResultHandler } from '../middlewares/validationResult.js'
-import { checkOrderKey } from '../middlewares/checkOrderKey.js'
 import { orderValidatorADD, orderValidatorEDIT } from '../validators/ordervalidator.js'
 import { verifyToken } from '../middlewares/verifyToken.js'
+import { checkOrderToken } from '../middlewares/checkOrderToken.js'
+import { generateOrderToken } from '../controllers/orderTokenController.js'
 import { 
     getOrders,
     editOrder,
@@ -18,6 +19,9 @@ router.get('/:typePath', verifyToken, getOrders)
 router.put('/edit/:id', verifyToken, orderValidatorEDIT, validationResultHandler, editOrder)
 
 // Add Order
-router.post('/add', orderValidatorADD, validationResultHandler, checkOrderKey, addOrder)
+router.post('/add', orderValidatorADD, validationResultHandler, checkOrderToken, addOrder)
+
+// Generate Order Token
+router.post('/generateToken', generateOrderToken)
 
 export default router
