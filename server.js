@@ -17,13 +17,13 @@ const app = express()
 const port = process.env.PORT || 3000
 
 app.use(cors({
-    origin: '*', //process.env.ALLOWED_ORIGIN
+    origin: process.env.ALLOWED_ORIGIN,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-order-key'],
 }))
-// app.use(securityOrigin)
-app.use(express.json({ limit: '50mb' }))
-app.use(express.urlencoded({ limit: '50mb', extended: true }))
+app.use(securityOrigin)
+app.use(express.json({ limit: '3mb' }))
+app.use(express.urlencoded({ limit: '3mb', extended: true }))
 
 /**
  * Rate Limit
@@ -31,7 +31,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }))
  */
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 50, // Limit each IP to 50 requests per windowMs
+    max: 100, // Limit each IP to 100 requests per windowMs
     message: 'Too many requests from this IP, please try again after 15 minutes',
     standardHeaders: true,
     legacyHeaders: false,
