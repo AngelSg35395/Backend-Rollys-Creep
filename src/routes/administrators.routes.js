@@ -5,7 +5,8 @@ import { verifyToken } from '../middlewares/verifyToken.js'
 import {
     getAdministrators,
     deleteAdministrator,
-    loginAdmin
+    loginAdmin,
+    logOutAdmin
 } from '../controllers/administratorsController.js'
 
 
@@ -19,5 +20,8 @@ router.delete('/delete/:admin_code', verifyToken, deleteAdministrator)
 
 // Login Administrator
 router.post('/login', adminLoginValidators, validationResultHandler, loginAdmin)
+
+// Logout Administrator
+router.post('/logout', verifyToken, logOutAdmin)
 
 export default router

@@ -39,11 +39,14 @@ TWILIO_PHONE=tu_numero_de_TWILIO
 COMPANY_PHONE=tu_numero_personal
 
 JWT_SECRET=tu_secreto_jwt_para_autenticacion
+ORDER_SECRET=tu_secreto_para_tokens_de_ordenes
 
 ALLOWED_ORIGINS=tus_origines
 ```
 
 **Nota sobre Twilio:** Las variables `TWILIO_PHONE` y `COMPANY_PHONE` son necesarias para el envío automático de notificaciones de WhatsApp cuando se crean nuevas órdenes. `TWILIO_PHONE` es el número de teléfono de Twilio (formato: whatsapp:+1234567890) y `COMPANY_PHONE` es el número de destino donde se recibirán las notificaciones (formato: whatsapp:+1234567890).
+
+**Nota sobre tokens:** La variable `ORDER_SECRET` es necesaria para generar y validar tokens de órdenes. Este secreto debe ser diferente de `JWT_SECRET` y debe ser una cadena segura y aleatoria.
 
 ### 1.2.3. Ejecución del Servidor
 
@@ -67,7 +70,7 @@ http://localhost:3000
 ## 1.3. Estructura del Proyecto
 
 ```
-api-prueba-xd/
+Backend-Rollys-Creep/
 │
 ├── src/
 │   ├── config/
@@ -81,12 +84,14 @@ api-prueba-xd/
 │   │   ├── productsController.js       # Controlador de productos
 │   │   ├── companionsController.js     # Controlador de acompañantes
 │   │   ├── ordersController.js         # Controlador de órdenes
+│   │   ├── orderTokenController.js      # Controlador para generación de tokens de órdenes
 │   │   └── administratorsController.js # Controlador de administradores
 │   │
 │   ├── middlewares/
 │   │   ├── validationResult.js  # Middleware para manejo de errores de validación
 │   │   ├── securityOrigin.js    # Middleware para control de origen seguro
-│   │   └── verifyToken.js       # Middleware para verificación de tokens JWT
+│   │   ├── verifyToken.js       # Middleware para verificación de tokens JWT
+│   │   └── checkOrderToken.js   # Middleware para verificación de tokens de órdenes
 │   │
 │   ├── routes/
 │   │   ├── root.routes.js           # Rutas de la raíz
@@ -129,27 +134,43 @@ La API está organizada en las siguientes categorías:
 
 ### 1.4.1. Autenticación
 
-La API utiliza autenticación basada en tokens JWT (JSON Web Tokens) para proteger los endpoints que requieren permisos de administrador. 
+La API utiliza dos sistemas de autenticación:
 
-**Endpoints que requieren autenticación:**
-- Todos los endpoints POST, PUT y DELETE (crear, editar, eliminar), excepto `POST /orders/add` y `POST /administrators/login`
+1. **Autenticación JWT para administradores**: Tokens JWT que expiran en 1 hora y se usan para proteger endpoints administrativos.
+2. **Tokens de órdenes**: Tokens JWT de corta duración (10 segundos) requeridos para crear órdenes.
+
+**Endpoints que requieren autenticación JWT de administrador:**
+- Todos los endpoints POST, PUT y DELETE (crear, editar, eliminar), excepto `POST /orders/add`, `POST /orders/generateToken` y `POST /administrators/login`
 - GET `/orders/:typePath` - Obtener órdenes
 - GET `/administrators` - Obtener administradores
+- POST `/administrators/logout` - Cerrar sesión
+
+**Endpoints que requieren token de orden:**
+- POST `/orders/add` - Agregar orden (requiere header `x-order-key`)
 
 **Endpoints públicos (no requieren autenticación):**
 - GET `/` - Mensaje de bienvenida
 - GET `/products/:typePath` - Obtener productos
+- GET `/products/searchSizes/:id` - Buscar tamaños de producto
 - GET `/companions` - Obtener acompañantes
-- POST `/orders/add` - Agregar orden
+- POST `/orders/generateToken` - Generar token de orden
 - POST `/administrators/login` - Iniciar sesión
 
-**Cómo usar la autenticación:**
+**Cómo usar la autenticación JWT de administrador:**
 Para acceder a endpoints protegidos, incluye el token JWT en el header `Authorization` con el formato:
 ```
 Authorization: Bearer <tu_token_jwt>
 ```
 
-El token se obtiene mediante el endpoint de login de administradores (ver sección 1.9.2).
+El token se obtiene mediante el endpoint de login de administradores (ver sección 1.9.2). Los tokens expiran después de 1 hora.
+
+**Cómo usar tokens de orden:**
+Para crear una orden, primero debes obtener un token de orden mediante `POST /orders/generateToken`, luego incluye el token en el header `x-order-key`:
+```
+x-order-key: <token_de_orden>
+```
+
+Los tokens de orden expiran después de 10 segundos, por lo que deben usarse inmediatamente después de generarse.
 
 ### 1.4.2. Rate Limiting
 
@@ -215,6 +236,48 @@ GET http://localhost:3000/products/all
 GET http://localhost:3000/products/initialProducts
 ```
 
+---
+
+### 1.6.1.1. Buscar Tamaños de Producto
+
+**Método HTTP:** `GET`
+
+**URL:** `/products/searchSizes/:id`
+
+**Descripción:** Obtiene los tamaños disponibles para un producto específico.
+
+**Parámetros de URL:**
+- `id` (number, requerido): ID del producto
+
+**Cuerpo de la petición:** No requiere
+
+**Ejemplo de petición:**
+```bash
+GET http://localhost:3000/products/searchSizes/1
+```
+
+**Respuestas:**
+
+**Success (200 OK):**
+```json
+[
+  {
+    "product_sizes": {
+      "small": 10.99,
+      "medium": 15.99,
+      "large": 20.99
+    }
+  }
+]
+```
+
+**Error (500 Internal Server Error):**
+```json
+{
+  "error": "Error fetching product[detalles del error]"
+}
+```
+
 **Respuestas:**
 
 **Success (200 OK):**
@@ -269,6 +332,7 @@ GET http://localhost:3000/products/initialProducts
 | `price` | number | Sí | Precio del producto en formato numérico |
 | `product_type` | string | Sí | Tipo de producto (ej: "bebida", "comida", etc.) |
 | `image_url` | string (URL) | Opcional | URL de la imagen del producto (debe ser una URL válida) |
+| `product_sizes` | object | Opcional | Objeto con tamaños y precios del producto (ej: `{"small": 10.99, "medium": 15.99, "large": 20.99}`) |
 
 **Headers requeridos:**
 ```
@@ -380,6 +444,7 @@ Todos los campos son opcionales. Solo se actualizarán los campos proporcionados
 | `price` | number | Opcional | Precio del producto en formato numérico |
 | `product_type` | string | Opcional | Tipo de producto (no puede estar vacío si se proporciona) |
 | `image_url` | string (URL) | Opcional | URL de la imagen del producto (debe ser una URL válida si se proporciona) |
+| `product_sizes` | object | Opcional | Objeto con tamaños y precios del producto (ej: `{"small": 10.99, "medium": 15.99, "large": 20.99}`) |
 
 **Headers requeridos:**
 ```
@@ -971,13 +1036,50 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-### 1.8.2. Agregar Orden
+### 1.8.2. Generar Token de Orden
+
+**Método HTTP:** `POST`
+
+**URL:** `/orders/generateToken`
+
+**Autenticación:** No requerida
+
+**Descripción:** Genera un token JWT de corta duración (10 segundos) que es requerido para crear órdenes. Este token debe usarse inmediatamente después de generarse.
+
+**Cuerpo de la petición:** No requiere
+
+**Ejemplo de petición:**
+```bash
+POST http://localhost:3000/orders/generateToken
+```
+
+**Respuestas:**
+
+**Success (200 OK):**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Error (500 Internal Server Error):**
+```json
+{
+  "error": "Error al generar token"
+}
+```
+
+**Nota:** El token generado debe incluirse en el header `x-order-key` al crear una orden. El token expira después de 10 segundos.
+
+---
+
+### 1.8.3. Agregar Orden
 
 **Método HTTP:** `POST`
 
 **URL:** `/orders/add`
 
-**Autenticación:** No requerida
+**Autenticación:** Requerida (Token de orden en header `x-order-key`)
 
 **Descripción:** Crea una nueva orden en el sistema. Las órdenes se crean con estado incompleto por defecto. **Al crear una orden, automáticamente se envía una notificación de WhatsApp** al número configurado en `COMPANY_PHONE` con un mensaje formateado que incluye los datos del cliente, información del pedido y detalles del carrito de compras.
 
@@ -989,6 +1091,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | `client_email` | string (email) | Sí | Email del cliente (entre 5 y 50 caracteres, debe ser un email válido) |
 | `client_phone` | string | Sí | Teléfono del cliente (entre 3 y 20 caracteres) |
 | `delivery_date` | string (fecha) | Sí | Fecha de entrega/recogida de la orden (formato de fecha válido) |
+| `delivery_time` | string | Sí | Hora de entrega/recogida de la orden (entre 3 y 20 caracteres) |
 | `payment_method` | string | Sí | Método de pago (entre 3 y 20 caracteres) |
 | `cart_items` | array | Sí | Array de items del carrito de compras (no puede estar vacío) |
 
@@ -999,6 +1102,7 @@ Cada item del array debe tener la siguiente estructura:
   "name": "string",           // Nombre del producto
   "quantity": number,         // Cantidad del producto
   "price": number,            // Precio unitario del producto
+  "product_size": "string",   // Tamaño del producto (ej: "small", "medium", "large")
   "complements": "string"     // Opcional: Complementos o acompañantes del producto
 }
 ```
@@ -1008,30 +1112,35 @@ Cada item del array debe tener la siguiente estructura:
 **Headers requeridos:**
 ```
 Content-Type: application/json
+x-order-key: <token_de_orden>
 ```
 
 **Ejemplo de petición:**
 ```bash
 POST http://localhost:3000/orders/add
 Content-Type: application/json
+x-order-key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 {
   "client_name": "Juan Pérez",
   "client_email": "juan.perez@example.com",
   "client_phone": "+1234567890",
   "delivery_date": "2024-01-20",
+  "delivery_time": "14:30",
   "payment_method": "Efectivo",
   "cart_items": [
     {
       "name": "Frappe de Chocolate",
       "quantity": 2,
       "price": 8.99,
+      "product_size": "medium",
       "complements": "Leche, Azúcar"
     },
     {
       "name": "Rollos de Canela",
       "quantity": 1,
-      "price": 12.50
+      "price": 12.50,
+      "product_size": "large"
     }
   ]
 }
@@ -1073,6 +1182,20 @@ Content-Type: application/json
 }
 ```
 
+**Error (401 Unauthorized) - Token de orden no proporcionado:**
+```json
+{
+  "error": "Missing order token"
+}
+```
+
+**Error (403 Forbidden) - Token de orden inválido o expirado:**
+```json
+{
+  "error": "Invalid or expired token"
+}
+```
+
 **Error (500 Internal Server Error) - Error al enviar WhatsApp (orden guardada):**
 ```json
 {
@@ -1085,13 +1208,15 @@ Content-Type: application/json
 - `client_email`: Debe ser un email válido con entre 5 y 50 caracteres. Se trima automáticamente.
 - `client_phone`: Debe ser un string no vacío con entre 3 y 20 caracteres. Se trima automáticamente.
 - `delivery_date`: Debe ser una fecha válida y no puede estar vacía.
+- `delivery_time`: Debe ser un string no vacío con entre 3 y 20 caracteres. Se trima automáticamente.
 - `payment_method`: Debe ser un string no vacío con entre 3 y 20 caracteres. Se trima automáticamente.
-- `cart_items`: Debe ser un array no vacío. Cada item debe contener `name`, `quantity` y `price`. El campo `complements` es opcional.
-- **Notificación automática**: Al crear una orden, se envía automáticamente un mensaje de WhatsApp formateado al número configurado en `COMPANY_PHONE`. El mensaje incluye los datos del cliente, fecha de recogida, método de pago, detalles del carrito (con cantidades, precios y subtotales) y el total de la orden. Si el envío del mensaje falla, la orden se guarda en la base de datos pero se retorna un error 500 indicando que el mensaje de WhatsApp no pudo ser enviado.
+- `cart_items`: Debe ser un array no vacío. Cada item debe contener `name`, `quantity`, `price` y `product_size`. El campo `complements` es opcional.
+- **Token de orden requerido**: Este endpoint requiere un token de orden válido en el header `x-order-key`. El token debe obtenerse mediante `POST /orders/generateToken` y usarse dentro de 10 segundos.
+- **Notificación automática**: Al crear una orden, se envía automáticamente un mensaje de WhatsApp formateado al número configurado en `COMPANY_PHONE`. El mensaje incluye los datos del cliente, fecha y hora de recogida, método de pago, detalles del carrito (con cantidades, precios, tamaños, subtotales) y el total de la orden. Si el envío del mensaje falla, la orden se guarda en la base de datos pero se retorna un error 500 indicando que el mensaje de WhatsApp no pudo ser enviado.
 
 ---
 
-### 1.8.3. Editar Orden
+### 1.8.4. Editar Orden
 
 **Método HTTP:** `PUT`
 
@@ -1248,7 +1373,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Autenticación:** No requerida (endpoint público)
 
-**Descripción:** Autentica un administrador y devuelve un token JWT que debe ser usado para acceder a los endpoints protegidos.
+**Descripción:** Autentica un administrador y devuelve un token JWT que debe ser usado para acceder a los endpoints protegidos. El sistema implementa protección contra fuerza bruta: después de 5 intentos fallidos, la cuenta se bloquea temporalmente por tiempo progresivo.
 
 **Cuerpo de la petición (JSON):**
 
@@ -1299,6 +1424,13 @@ Content-Type: application/json
 }
 ```
 
+**Error (403 Forbidden) - Cuenta bloqueada:**
+```json
+{
+  "error": "Too many failed attempts. Try again in X minutes"
+}
+```
+
 **Error (500 Internal Server Error):**
 ```json
 {
@@ -1310,12 +1442,66 @@ Content-Type: application/json
 - `account_name`: Debe ser un string con entre 5 y 15 caracteres.
 - `account_password`: Debe ser un string con entre 8 y 25 caracteres.
 - Las contraseñas se comparan usando bcrypt con las contraseñas hasheadas almacenadas en la base de datos.
+- **Protección contra fuerza bruta**: Después de 5 intentos fallidos de inicio de sesión, la cuenta se bloquea temporalmente. El tiempo de bloqueo aumenta progresivamente: 5 minutos después del 5to intento, 10 minutos después del 6to, etc.
+- Los intentos fallidos se reinician después de un inicio de sesión exitoso.
 
-**Nota:** El token JWT devuelto debe ser incluido en el header `Authorization` como `Bearer <token>` para acceder a los endpoints protegidos. El token no expira por defecto, pero puede ser invalidado si el administrador es eliminado.
+**Nota:** El token JWT devuelto debe ser incluido en el header `Authorization` como `Bearer <token>` para acceder a los endpoints protegidos. El token expira después de 1 hora y puede ser invalidado mediante el endpoint de logout o si el administrador es eliminado.
 
 ---
 
-### 1.9.3. Eliminar Administrador
+### 1.9.3. Cerrar Sesión de Administrador
+
+**Método HTTP:** `POST`
+
+**URL:** `/administrators/logout`
+
+**Autenticación:** Requerida (JWT Token)
+
+**Descripción:** Invalida el token JWT del administrador actual, agregándolo a una lista de tokens revocados. El token no podrá ser usado nuevamente hasta que expire naturalmente.
+
+**Cuerpo de la petición:** No requiere
+
+**Headers requeridos:**
+```
+Authorization: Bearer <tu_token_jwt>
+```
+
+**Ejemplo de petición:**
+```bash
+POST http://localhost:3000/administrators/logout
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Respuestas:**
+
+**Success (200 OK):**
+```json
+{
+  "message": "Logout successful"
+}
+```
+
+**Error (401 Unauthorized) - Token no proporcionado:**
+```json
+{
+  "error": "No token provided"
+}
+```
+
+**Error (400 Bad Request) - Token inválido:**
+```json
+{
+  "error": "Invalid token"
+}
+```
+
+**Validaciones y Reglas:**
+- El token JWT debe ser válido y no expirado.
+- El token se registra en la base de datos como revocado y no podrá ser usado nuevamente.
+
+---
+
+### 1.9.4. Eliminar Administrador
 
 **Método HTTP:** `DELETE`
 
@@ -1384,7 +1570,7 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
 2. **Usar token**: Incluir el token en el header `Authorization: Bearer <token>` en todas las peticiones a endpoints protegidos
 3. **Validación**: El servidor valida el token en cada petición protegida
 
-**Endpoints protegidos (requieren autenticación):**
+**Endpoints protegidos (requieren autenticación JWT de administrador):**
 - `POST /products/add` - Agregar producto
 - `PUT /products/edit/:id` - Editar producto
 - `DELETE /products/delete/:id` - Eliminar producto
@@ -1395,13 +1581,18 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
 - `GET /orders/:typePath` - Obtener órdenes
 - `PUT /orders/edit/:id` - Editar orden
 - `GET /administrators` - Obtener administradores
+- `POST /administrators/logout` - Cerrar sesión
 - `DELETE /administrators/delete/:admin_code` - Eliminar administrador
+
+**Endpoints que requieren token de orden:**
+- `POST /orders/add` - Agregar orden (requiere header `x-order-key`)
 
 **Endpoints públicos (no requieren autenticación):**
 - `GET /` - Mensaje de bienvenida
 - `GET /products/:typePath` - Obtener productos
+- `GET /products/searchSizes/:id` - Buscar tamaños de producto
 - `GET /companions` - Obtener acompañantes
-- `POST /orders/add` - Agregar orden
+- `POST /orders/generateToken` - Generar token de orden
 - `POST /administrators/login` - Iniciar sesión
 
 ### 1.10.2. Rate Limiting
@@ -1418,7 +1609,8 @@ El rate limiting se aplica globalmente a todos los endpoints de la API.
 
 Asegúrate de configurar las siguientes variables de entorno:
 
-- `JWT_SECRET`: Secreto utilizado para firmar y verificar tokens JWT. Debe ser una cadena segura y aleatoria.
+- `JWT_SECRET`: Secreto utilizado para firmar y verificar tokens JWT de administradores. Debe ser una cadena segura y aleatoria.
+- `ORDER_SECRET`: Secreto utilizado para firmar y verificar tokens JWT de órdenes. Debe ser diferente de `JWT_SECRET` y ser una cadena segura y aleatoria.
 - `ACCOUNT_SID`: SID de tu cuenta de Twilio
 - `AUTH_TOKEN`: Token de autenticación de Twilio
 - `TWILIO_PHONE`: Número de teléfono de Twilio en formato WhatsApp (ej: `whatsapp:+1234567890`)
@@ -1429,8 +1621,8 @@ Asegúrate de configurar las siguientes variables de entorno:
 La API integra notificaciones automáticas de WhatsApp mediante Twilio. Cuando se crea una nueva orden mediante el endpoint `POST /orders/add`, se envía automáticamente un mensaje de WhatsApp al número configurado en `COMPANY_PHONE` con un mensaje formateado que incluye:
 
 - **Datos del cliente**: Nombre, email y teléfono
-- **Información del pedido**: Fecha de recogida y método de pago
-- **Detalles del carrito**: Lista de productos con cantidades, precios unitarios, subtotales y complementos (si aplica)
+- **Información del pedido**: Fecha y hora de recogida y método de pago
+- **Detalles del carrito**: Lista de productos con cantidades, tamaños, precios unitarios, subtotales y complementos (si aplica)
 - **Total de la orden**: Suma total de todos los items del carrito
 
 El mensaje se genera automáticamente usando la función `prepareOrderMessage` y se almacena en el campo `order_msg` de la base de datos.
@@ -1457,6 +1649,7 @@ El mensaje se genera automáticamente usando la función `prepareOrderMessage` y
 - `price`: Debe ser numérico, requerido al agregar
 - `product_type`: String no vacío, requerido al agregar
 - `image_url`: URL válida, opcional. Se carga automáticamente a Supabase Storage si se proporciona
+- `product_sizes`: Objeto opcional con tamaños y precios del producto (ej: `{"small": 10.99, "medium": 15.99, "large": 20.99}`)
 - `highlight`: Booleano requerido para actualizar estado de destacado
 
 #### 1.11.2.2. Acompañantes
@@ -1468,14 +1661,19 @@ El mensaje se genera automáticamente usando la función `prepareOrderMessage` y
 - `client_email`: Requerido al agregar, email válido entre 5 y 50 caracteres
 - `client_phone`: Requerido al agregar, entre 3 y 20 caracteres
 - `delivery_date`: Requerido al agregar, debe ser una fecha válida
+- `delivery_time`: Requerido al agregar, entre 3 y 20 caracteres
 - `payment_method`: Requerido al agregar, entre 3 y 20 caracteres
-- `cart_items`: Requerido al agregar, array no vacío. Cada item debe contener `name`, `quantity` y `price`. El campo `complements` es opcional
+- `cart_items`: Requerido al agregar, array no vacío. Cada item debe contener `name`, `quantity`, `price` y `product_size`. El campo `complements` es opcional
 - `order_state`: Booleano requerido para editar
+- **Token de orden**: Requerido para crear órdenes. Debe obtenerse mediante `POST /orders/generateToken` y usarse dentro de 10 segundos
 - **Nota**: El campo `order_msg` se genera automáticamente a partir de los datos del cliente y del carrito de compras
 
 #### 1.11.2.4. Administradores
 - `account_name`: Requerido para login, entre 5 y 15 caracteres
 - `account_password`: Requerido para login, entre 8 y 25 caracteres
+- **Protección contra fuerza bruta**: Después de 5 intentos fallidos, la cuenta se bloquea temporalmente con tiempo progresivo
+- **Expiración de tokens**: Los tokens JWT expiran después de 1 hora
+- **Revocación de tokens**: Los tokens pueden ser revocados mediante el endpoint de logout
 
 **Por motivos de seguridad, la creación de administradores se realiza exclusivamente desde la base de datos y no a través de la API. Para añadir un nuevo administrador, primero debes generar una contraseña cifrada (bcrypt).**
 
@@ -1490,4 +1688,4 @@ El servidor está configurado para aceptar cuerpos de petición de hasta **50MB*
 
 ---
 
-**Versión del API:** 1.0.06
+**Versión del API:** 1.0.07

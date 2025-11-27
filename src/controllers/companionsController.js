@@ -1,62 +1,95 @@
 import supabase from '../config/supabase.js'
 
 export const getCompanions = async (req, res) => {
-    const { data, error } = await supabase
-        .from('companions')
-        .select('*')
-        .order('companion_id')
+    try {
+        const { data, error } = await supabase
+            .from('companions')
+            .select('*')
+            .order('companion_id')
 
-    if (error) {
-        console.log(error)
-        res.status(500).json({ error: 'Error fetching companions' + error })
+        if (error) {
+            return res.status(500).json({
+                error: 'Failed to fetch companions',
+                description: error.message,
+            })
+        }
+        return res.json(data)
+    } catch (err) {
+        return res.status(500).json({
+            error: 'Failed to fetch companions',
+            description: err.message,
+        })
     }
-    res.json(data)
 }
 
 export const editCompanion = async (req, res) => {
     const { id } = req.params
     const changes = req.body
 
-    // Update companion
-    const { data, error } = await supabase
-        .from('companions')
-        .update(changes)
-        .eq('companion_id', id)
+    try {
+        const { error } = await supabase
+            .from('companions')
+            .update(changes)
+            .eq('companion_id', id)
 
-    if (error) {
-        console.log(error)
-        res.status(500).json({ error: 'Error updating companion' + error })
+        if (error) {
+            return res.status(500).json({
+                error: 'Failed to update companion',
+                description: error.message,
+            })
+        }
+        return res.json({ message: 'Companion updated successfully'})
+    } catch (err) {
+        return res.status(500).json({
+            error: 'Failed to update companion',
+            description: err.message,
+        })
     }
-    res.json({ message: 'Company updated successfully'})
 }
 
 export const deleteCompanion = async (req, res) => {
     const { id } = req.params
 
-    // Delete companion
-    const { data, error } = await supabase
-        .from('companions')
-        .delete()
-        .eq('companion_id', id)
+    try {
+        const { error } = await supabase
+            .from('companions')
+            .delete()
+            .eq('companion_id', id)
 
-    if (error) {
-        console.log(error)
-        res.status(500).json({ error: 'Error deleting companion' + error })
+        if (error) {
+            return res.status(500).json({
+                error: 'Failed to delete companion',
+                description: error.message,
+            })
+        }
+        return res.json({ message: 'Companion deleted successfully'})
+    } catch (err) {
+        return res.status(500).json({
+            error: 'Failed to delete companion',
+            description: err.message,
+        })
     }
-    res.json({ message: 'Company deleted successfully'})
 }
 
 export const addCompanion = async (req, res) => {
     const companion = req.body
 
-    // Add companion to the database
-    const { data, error } = await supabase
-        .from('companions')
-        .insert([companion])
+    try {
+        const { error } = await supabase
+            .from('companions')
+            .insert([companion])
 
-    if (error) {
-        console.log(error)
-        res.status(500).json({ error: 'Error adding companion' + error.message })
+        if (error) {
+            return res.status(500).json({
+                error: 'Failed to add companion',
+                description: error.message,
+            })
+        }
+        return res.status(201).json({ message: 'Companion added successfully' })
+    } catch (err) {
+        return res.status(500).json({
+            error: 'Failed to add companion',
+            description: err.message,
+        })
     }
-    res.json({ message: 'Company added successfully' })
 }

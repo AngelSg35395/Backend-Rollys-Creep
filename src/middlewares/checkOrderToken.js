@@ -8,7 +8,7 @@ export const checkOrderToken = (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.ORDER_SECRET);
 
         if (decoded.type !== "order") {
             return res.status(403).json({ error: "Invalid token type" });

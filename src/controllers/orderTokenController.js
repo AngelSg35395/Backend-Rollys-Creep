@@ -7,11 +7,14 @@ export const generateOrderToken = (req, res) => {
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET,
-            {expiresIn: "30s"}
+            {expiresIn: "10s"}
         );
 
         return res.status(200).json({token});
     } catch (error) {
-        return res.status(500).json({error: "Error al generar token"});
+        return res.status(500).json({
+            error: 'Failed to generate order token',
+            description: error.message,
+        });
     }
 };

@@ -34,11 +34,10 @@ export async function sendMessageToWhatsapp(message) {
             to: companyPhone
         })
 
-        console.log("WhatsApp message sent:", response.sid)
         return response
 
     } catch (error) {
-        console.error("Error sending WhatsApp message:", error.message)
-        throw error
+        const reason = error?.message || String(error)
+        throw new Error(`Failed to send WhatsApp message: ${reason}`)
     }
 }

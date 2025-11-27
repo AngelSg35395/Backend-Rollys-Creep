@@ -26,7 +26,7 @@ export async function uploadImageFromUrl(imageUrl) {
 
         return publicUrl;
     } catch (error) {
-        console.log(error);
-        return null;
+        const reason = error?.message || String(error)
+        throw new Error(`Failed to upload image: ${reason}`);
     }
 }
