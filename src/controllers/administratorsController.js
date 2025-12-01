@@ -112,6 +112,13 @@ export const loginAdmin = async (req, res) => {
                             // If token is valid and belongs to the same admin, refresh it
                             if (decoded.admin_code === admin.admin_code) {
                                 shouldRefresh = true;
+                                
+                                // Revoke the existing token before generating a new one
+                                const exp = decoded.exp * 1000;
+                                await supabase.from('revoked_tokens').insert({
+                                    token: existingToken,
+                                    expires_at: new Date(exp)
+                                });
                             }
                         }
                     } catch (err) {

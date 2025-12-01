@@ -165,7 +165,11 @@ Authorization: Bearer <tu_token_jwt>
 El token se obtiene mediante el endpoint de login de administradores (ver sección 1.9.2). Los tokens expiran después de 1 hora por defecto.
 
 **Mecanismo de Refresh de Tokens:**
-Si inicias sesión con un token válido y no bloqueado en el header `Authorization`, el sistema automáticamente extenderá la expiración del token a 6 horas en lugar de generar uno nuevo de 1 hora. Esto permite mantener sesiones activas sin necesidad de volver a autenticarse constantemente. El token debe:
+Si inicias sesión con un token válido y no bloqueado en el header `Authorization`, el sistema automáticamente:
+1. **Revoca el token anterior** (lo marca como inválido en la base de datos)
+2. **Genera un nuevo token** con expiración de 6 horas en lugar de 1 hora
+
+Esto permite mantener sesiones activas sin necesidad de volver a autenticarse constantemente, mientras se asegura que el token anterior no pueda ser usado nuevamente. El token debe:
 - Ser válido (no expirado)
 - No estar revocado en la base de datos
 - Pertenecer al mismo administrador que está iniciando sesión
@@ -1464,10 +1468,10 @@ Content-Type: application/json
   - No está revocado en la base de datos
   - Es válido (no expirado)
   - Pertenece al mismo administrador que está iniciando sesión
-- El sistema generará un nuevo token con expiración de **6 horas** en lugar de 1 hora.
+- El sistema **revocará automáticamente el token anterior** y generará un nuevo token con expiración de **6 horas** en lugar de 1 hora.
 - Si no hay token o el token no cumple las condiciones, se genera un token normal con expiración de **1 hora**.
 
-**Nota:** El token JWT devuelto debe ser incluido en el header `Authorization` como `Bearer <token>` para acceder a los endpoints protegidos. Los tokens expiran después de 1 hora (login normal) o 6 horas (si se refrescan), y pueden ser invalidados mediante el endpoint de logout o si el administrador es eliminado.
+**Nota:** El token JWT devuelto debe ser incluido en el header `Authorization` como `Bearer <token>` para acceder a los endpoints protegidos. Los tokens expiran después de 1 hora (login normal) o 6 horas (si se refrescan), y pueden ser invalidados mediante el endpoint de logout, si se refresca la sesión (el token anterior se revoca automáticamente), o si el administrador es eliminado.
 
 ---
 
@@ -1591,7 +1595,7 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
 1. **Obtener token**: Realizar POST a `/administrators/login` con credenciales válidas
 2. **Usar token**: Incluir el token en el header `Authorization: Bearer <token>` en todas las peticiones a endpoints protegidos
 3. **Validación**: El servidor valida el token en cada petición protegida
-4. **Refresh de token**: Si inicias sesión con un token válido y no bloqueado, el sistema automáticamente extiende su expiración a 3 horas
+4. **Refresh de token**: Si inicias sesión con un token válido y no bloqueado, el sistema automáticamente revoca el token anterior y genera uno nuevo con expiración de 6 horas
 
 **Mecanismo de Refresh de Tokens:**
 - Los tokens JWT tienen una expiración de 1 hora por defecto
@@ -1599,7 +1603,7 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
   - Que el token no esté revocado
   - Que el token sea válido (no expirado)
   - Que el token pertenezca al mismo administrador
-- Si todas las condiciones se cumplen, se genera un nuevo token con expiración de **6 horas**
+- Si todas las condiciones se cumplen, el sistema **revoca automáticamente el token anterior** y genera un nuevo token con expiración de **6 horas**
 - Si no se cumplen las condiciones, se genera un token normal con expiración de **1 hora**
 
 **Endpoints protegidos (requieren autenticación JWT de administrador):**
