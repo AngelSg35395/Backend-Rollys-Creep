@@ -6,8 +6,8 @@ export const generateOrderToken = (req, res) => {
             type: "order",
         };
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET,
-            {expiresIn: "10s"}
+        const token = jwt.sign(payload, process.env.ORDER_SECRET,
+            {expiresIn: "15s"}
         );
 
         return res.status(200).json({token});
