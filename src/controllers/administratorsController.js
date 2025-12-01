@@ -89,14 +89,49 @@ export const loginAdmin = async (req, res) => {
                 })
                 .eq('admin_code', admin.admin_code)
 
-            // Create JWT
+            // Check if there's a valid token in the header for refresh mechanism
+            const authHeader = req.headers.authorization;
+            let shouldRefresh = false;
+
+            if (authHeader) {
+                const existingToken = authHeader.split(' ')[1];
+                
+                if (existingToken) {
+                    try {
+                        // Check if token is revoked
+                        const { data: revoked, error: revokedError } = await supabase
+                            .from('revoked_tokens')
+                            .select('*')
+                            .eq('token', existingToken)
+                            .maybeSingle();
+
+                        if (!revokedError && !revoked) {
+                            // Try to verify and decode the token
+                            const decoded = jwt.verify(existingToken, process.env.JWT_SECRET);
+                            
+                            // If token is valid and belongs to the same admin, refresh it
+                            if (decoded.admin_code === admin.admin_code) {
+                                shouldRefresh = true;
+                            }
+                        }
+                    } catch (err) {
+                        // Token is invalid or expired, proceed with normal login
+                        shouldRefresh = false;
+                    }
+                }
+            }
+
+            // Create JWT with refresh (6h) or normal (1h) expiration
             const token = jwt.sign(
                 { admin_code: admin.admin_code },
                 process.env.JWT_SECRET,
-                { expiresIn: '1h' }
+                { expiresIn: shouldRefresh ? '6h' : '1h' }
             );
 
-            return res.json({ token, message: 'Login successful' })
+            return res.json({ 
+                token, 
+                message: shouldRefresh ? 'Token refreshed successfully' : 'Login successful' 
+            })
         }
     } catch (error) {
         return res.status(500).json({ error: 'Error logging in administrator: ' + error })

@@ -13,7 +13,7 @@ API REST desarrollada con Node.js y Express que proporciona servicios de gestió
 - **Cuenta de Supabase**: Para la configuración de la base de datos
 - **Variables de entorno**: Archivo `.env` con las credenciales de Supabase
 - **Cuenta de Twilio**: Para la configuración de Twilio para notificaciones de WhatsApp en pedidos
-- **Límite de tamaño**: El servidor acepta cuerpos de petición de hasta 50MB (JSON y URL-encoded)
+- **Límite de tamaño**: El servidor acepta cuerpos de petición de hasta 3MB (JSON y URL-encoded)
 
 ### 1.2.2. Instalación
 
@@ -136,7 +136,7 @@ La API está organizada en las siguientes categorías:
 
 La API utiliza dos sistemas de autenticación:
 
-1. **Autenticación JWT para administradores**: Tokens JWT que expiran en 1 hora y se usan para proteger endpoints administrativos.
+1. **Autenticación JWT para administradores**: Tokens JWT que expiran en 1 hora (o 3 horas si se refrescan) y se usan para proteger endpoints administrativos. El sistema incluye un mecanismo de refresh automático de tokens.
 2. **Tokens de órdenes**: Tokens JWT de corta duración (10 segundos) requeridos para crear órdenes.
 
 **Endpoints que requieren autenticación JWT de administrador:**
@@ -162,7 +162,13 @@ Para acceder a endpoints protegidos, incluye el token JWT en el header `Authoriz
 Authorization: Bearer <tu_token_jwt>
 ```
 
-El token se obtiene mediante el endpoint de login de administradores (ver sección 1.9.2). Los tokens expiran después de 1 hora.
+El token se obtiene mediante el endpoint de login de administradores (ver sección 1.9.2). Los tokens expiran después de 1 hora por defecto.
+
+**Mecanismo de Refresh de Tokens:**
+Si inicias sesión con un token válido y no bloqueado en el header `Authorization`, el sistema automáticamente extenderá la expiración del token a 6 horas en lugar de generar uno nuevo de 1 hora. Esto permite mantener sesiones activas sin necesidad de volver a autenticarse constantemente. El token debe:
+- Ser válido (no expirado)
+- No estar revocado en la base de datos
+- Pertenecer al mismo administrador que está iniciando sesión
 
 **Cómo usar tokens de orden:**
 Para crear una orden, primero debes obtener un token de orden mediante `POST /orders/generateToken`, luego incluye el token en el header `x-order-key`:
@@ -175,7 +181,7 @@ Los tokens de orden expiran después de 10 segundos, por lo que deben usarse inm
 ### 1.4.2. Rate Limiting
 
 La API implementa rate limiting para prevenir abuso. Los límites son:
-- **50 solicitudes por IP** cada **15 minutos**
+- **100 solicitudes por IP** cada **15 minutos**
 - Si se excede el límite, se retorna un error 429 con el mensaje: "Too many requests from this IP, please try again after 15 minutes"
 
 ---
@@ -1379,7 +1385,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `account_name` | string | Sí | Nombre de usuario del administrador (entre 5 y 15 caracteres) |
+| `account_name` | string | Sí | Nombre de usuario del administrador (entre 4 y 15 caracteres) |
 | `account_password` | string | Sí | Contraseña del administrador (entre 8 y 25 caracteres) |
 
 **Ejemplo de petición:**
@@ -1395,11 +1401,19 @@ Content-Type: application/json
 
 **Respuestas:**
 
-**Success (200 OK):**
+**Success (200 OK) - Login normal:**
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbl9jb2RlIjoiQURNMDAxIiwiaWF0IjoxNjEwMjM0NTY3fQ...",
   "message": "Login successful"
+}
+```
+
+**Success (200 OK) - Token refrescado:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbl9jb2RlIjoiQURNMDAxIiwiaWF0IjoxNjEwMjM0NTY3fQ...",
+  "message": "Token refreshed successfully"
 }
 ```
 
@@ -1439,13 +1453,21 @@ Content-Type: application/json
 ```
 
 **Validaciones y Reglas:**
-- `account_name`: Debe ser un string con entre 5 y 15 caracteres.
+- `account_name`: Debe ser un string con entre 4 y 15 caracteres.
 - `account_password`: Debe ser un string con entre 8 y 25 caracteres.
 - Las contraseñas se comparan usando bcrypt con las contraseñas hasheadas almacenadas en la base de datos.
 - **Protección contra fuerza bruta**: Después de 5 intentos fallidos de inicio de sesión, la cuenta se bloquea temporalmente. El tiempo de bloqueo aumenta progresivamente: 5 minutos después del 5to intento, 10 minutos después del 6to, etc.
 - Los intentos fallidos se reinician después de un inicio de sesión exitoso.
 
-**Nota:** El token JWT devuelto debe ser incluido en el header `Authorization` como `Bearer <token>` para acceder a los endpoints protegidos. El token expira después de 1 hora y puede ser invalidado mediante el endpoint de logout o si el administrador es eliminado.
+**Mecanismo de Refresh de Tokens:**
+- Si incluyes un token válido en el header `Authorization` al iniciar sesión, y ese token:
+  - No está revocado en la base de datos
+  - Es válido (no expirado)
+  - Pertenece al mismo administrador que está iniciando sesión
+- El sistema generará un nuevo token con expiración de **6 horas** en lugar de 1 hora.
+- Si no hay token o el token no cumple las condiciones, se genera un token normal con expiración de **1 hora**.
+
+**Nota:** El token JWT devuelto debe ser incluido en el header `Authorization` como `Bearer <token>` para acceder a los endpoints protegidos. Los tokens expiran después de 1 hora (login normal) o 6 horas (si se refrescan), y pueden ser invalidados mediante el endpoint de logout o si el administrador es eliminado.
 
 ---
 
@@ -1569,6 +1591,16 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
 1. **Obtener token**: Realizar POST a `/administrators/login` con credenciales válidas
 2. **Usar token**: Incluir el token en el header `Authorization: Bearer <token>` en todas las peticiones a endpoints protegidos
 3. **Validación**: El servidor valida el token en cada petición protegida
+4. **Refresh de token**: Si inicias sesión con un token válido y no bloqueado, el sistema automáticamente extiende su expiración a 3 horas
+
+**Mecanismo de Refresh de Tokens:**
+- Los tokens JWT tienen una expiración de 1 hora por defecto
+- Si al iniciar sesión incluyes un token válido en el header `Authorization`, el sistema verificará:
+  - Que el token no esté revocado
+  - Que el token sea válido (no expirado)
+  - Que el token pertenezca al mismo administrador
+- Si todas las condiciones se cumplen, se genera un nuevo token con expiración de **6 horas**
+- Si no se cumplen las condiciones, se genera un token normal con expiración de **1 hora**
 
 **Endpoints protegidos (requieren autenticación JWT de administrador):**
 - `POST /products/add` - Agregar producto
@@ -1599,7 +1631,7 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
 
 La API implementa rate limiting para prevenir abuso y ataques de fuerza bruta:
 
-- **Límite**: 50 solicitudes por IP cada 15 minutos
+- **Límite**: 100 solicitudes por IP cada 15 minutos
 - **Respuesta de error**: HTTP 429 (Too Many Requests)
 - **Mensaje**: "Too many requests from this IP, please try again after 15 minutes"
 
@@ -1669,23 +1701,22 @@ El mensaje se genera automáticamente usando la función `prepareOrderMessage` y
 - **Nota**: El campo `order_msg` se genera automáticamente a partir de los datos del cliente y del carrito de compras
 
 #### 1.11.2.4. Administradores
-- `account_name`: Requerido para login, entre 5 y 15 caracteres
+- `account_name`: Requerido para login, entre 4 y 15 caracteres
 - `account_password`: Requerido para login, entre 8 y 25 caracteres
 - **Protección contra fuerza bruta**: Después de 5 intentos fallidos, la cuenta se bloquea temporalmente con tiempo progresivo
-- **Expiración de tokens**: Los tokens JWT expiran después de 1 hora
+- **Expiración de tokens**: Los tokens JWT expiran después de 1 hora por defecto, o 6 horas si se refrescan mediante el mecanismo de refresh
+- **Mecanismo de refresh**: Si se inicia sesión con un token válido y no bloqueado, el tiempo de expiración se extiende a 6 horas
 - **Revocación de tokens**: Los tokens pueden ser revocados mediante el endpoint de logout
 
 **Por motivos de seguridad, la creación de administradores se realiza exclusivamente desde la base de datos y no a través de la API. Para añadir un nuevo administrador, primero debes generar una contraseña cifrada (bcrypt).**
-
-## Nota el archivo no se encuentra en el repositorio
 ---
 
 ## 1.12. Notas Adicionales
 
 ### 1.12.1. Límites de Tamaño
 
-El servidor está configurado para aceptar cuerpos de petición de hasta **50MB** tanto para JSON como para datos URL-encoded. Esto es útil para la carga de imágenes grandes en productos.
+El servidor está configurado para aceptar cuerpos de petición de hasta **3MB** tanto para JSON como para datos URL-encoded. Esto es útil para la carga de imágenes en productos.
 
 ---
 
-**Versión del API:** 1.0.07
+**Versión del API:** 1.0.0
