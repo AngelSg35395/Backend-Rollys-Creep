@@ -2,7 +2,7 @@
 
 ## 1.1. Descripción General
 
-API REST desarrollada con Node.js y Express que proporciona servicios de gestión para el establecimiento 'Roly's Crep'. La API permite administrar productos, acompañantes de productos, órdenes de pedidos y cuentas de administradores. Utiliza Supabase como base de datos y ofrece funcionalidades completas de CRUD (Create, Read, Update, Delete) para cada entidad. Además, integra notificaciones automáticas de WhatsApp mediante Twilio para alertar sobre nuevas órdenes.
+API REST desarrollada con Node.js y Express que proporciona servicios de gestión para el establecimiento 'Roly's Crep'. La API permite administrar productos, acompañantes de productos, órdenes de pedidos, horarios de atención y cuentas de administradores. Utiliza Supabase como base de datos y ofrece funcionalidades completas de CRUD (Create, Read, Update, Delete) para cada entidad. Además, integra notificaciones automáticas de WhatsApp mediante Twilio para alertar sobre nuevas órdenes.
 
 ## 1.2. Requisitos del Entorno
 
@@ -85,7 +85,8 @@ Backend-Rollys-Creep/
 │   │   ├── companionsController.js     # Controlador de acompañantes
 │   │   ├── ordersController.js         # Controlador de órdenes
 │   │   ├── orderTokenController.js      # Controlador para generación de tokens de órdenes
-│   │   └── administratorsController.js # Controlador de administradores
+│   │   ├── administratorsController.js # Controlador de administradores
+│   │   └── schedulesController.js      # Controlador de horarios de atención
 │   │
 │   ├── middlewares/
 │   │   ├── validationResult.js  # Middleware para manejo de errores de validación
@@ -98,13 +99,15 @@ Backend-Rollys-Creep/
 │   │   ├── products.routes.js       # Rutas de productos
 │   │   ├── companions.routes.js     # Rutas de acompañantes
 │   │   ├── orders.routes.js         # Rutas de órdenes
-│   │   └── administrators.routes.js # Rutas de administradores
+│   │   ├── administrators.routes.js # Rutas de administradores
+│   │   └── schedules.routes.js      # Rutas de horarios de atención
 │   │
 │   └── validators/
 │       ├── productvalidator.js       # Validadores de productos
 │       ├── companionvalidator.js     # Validadores de acompañantes
 │       ├── ordervalidator.js         # Validadores de órdenes
-│       └── adminValidators.js        # Validadores de administradores
+│       ├── adminValidators.js        # Validadores de administradores
+│       └── scheduleValidator.js      # Validadores de horarios de atención
 │
 ├── .gitignore             # Archivos ignorados por Git
 ├── package.json           # Configuración y dependencias del proyecto
@@ -131,6 +134,7 @@ La API está organizada en las siguientes categorías:
 3. **Acompañantes** - Gestión de acompañantes (extras) de productos
 4. **Órdenes** - Gestión de pedidos
 5. **Administradores** - Gestión de cuentas de administradores
+6. **Horarios** - Gestión de horarios de atención
 
 ### 1.4.1. Autenticación
 
@@ -144,6 +148,9 @@ La API utiliza dos sistemas de autenticación:
 - GET `/orders/:typePath` - Obtener órdenes
 - GET `/administrators` - Obtener administradores
 - POST `/administrators/logout` - Cerrar sesión
+- POST `/schedules` - Crear o actualizar horarios
+- PUT `/schedules/:day` - Actualizar horario de un día
+- DELETE `/schedules/:day` - Eliminar horario de un día
 
 **Endpoints que requieren token de orden:**
 - POST `/orders/add` - Agregar orden (requiere header `x-order-key`)
@@ -153,6 +160,8 @@ La API utiliza dos sistemas de autenticación:
 - GET `/products/:typePath` - Obtener productos
 - GET `/products/searchSizes/:id` - Buscar tamaños de producto
 - GET `/companions` - Obtener acompañantes
+- GET `/schedules` - Obtener todos los horarios
+- GET `/schedules/:day` - Obtener horario de un día específico
 - POST `/orders/generateToken` - Generar token de orden
 - POST `/administrators/login` - Iniciar sesión
 
@@ -1586,9 +1595,454 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
-## 1.10. Resumen de Seguridad y Autenticación
+## 1.10. Horarios de Atención
 
-### 1.10.1. Autenticación JWT
+### 1.10.1. Crear o Actualizar Horarios de la Semana
+
+**Método HTTP:** `POST`
+
+**URL:** `/schedules`
+
+**Autenticación:** Requerida (JWT Token)
+
+**Descripción:** Crea o actualiza los horarios de atención de la semana. Permite configurar múltiples días en una sola petición. Si un horario ya existe para un día, se actualiza; si no existe, se crea.
+
+**Cuerpo de la petición (JSON):**
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `schedules` | array | Sí | Array de objetos de horarios. Mínimo 1 horario |
+| `schedules[].day` | string | Sí | Día de la semana. Valores permitidos: "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo" |
+| `schedules[].enabled` | boolean | Sí | Indica si el horario está habilitado para ese día |
+| `schedules[].start_time` | string | Condicional | Hora de inicio en formato HH:MM (24 horas). Requerido si `enabled` es `true` |
+| `schedules[].end_time` | string | Condicional | Hora de fin en formato HH:MM (24 horas). Requerido si `enabled` es `true` |
+
+**Headers requeridos:**
+```
+Authorization: Bearer <tu_token_jwt>
+```
+
+**Ejemplo de petición:**
+```bash
+POST http://localhost:3000/schedules
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "schedules": [
+    {
+      "day": "Lunes",
+      "enabled": true,
+      "start_time": "09:00",
+      "end_time": "18:00"
+    },
+    {
+      "day": "Martes",
+      "enabled": true,
+      "start_time": "09:00",
+      "end_time": "18:00"
+    },
+    {
+      "day": "Domingo",
+      "enabled": false
+    }
+  ]
+}
+```
+
+**Respuestas:**
+
+**Success (200 OK) - Todos los horarios procesados correctamente:**
+```json
+{
+  "message": "Horarios creados/actualizados exitosamente",
+  "schedules": [
+    {
+      "id": 1,
+      "day": "Lunes",
+      "enabled": true,
+      "start_time": "09:00:00",
+      "end_time": "18:00:00"
+    },
+    {
+      "id": 2,
+      "day": "Martes",
+      "enabled": true,
+      "start_time": "09:00:00",
+      "end_time": "18:00:00"
+    }
+  ]
+}
+```
+
+**Success (207 Multi-Status) - Algunos horarios procesados correctamente:**
+```json
+{
+  "message": "Algunos horarios se procesaron correctamente",
+  "success": [
+    {
+      "id": 1,
+      "day": "Lunes",
+      "enabled": true,
+      "start_time": "09:00:00",
+      "end_time": "18:00:00"
+    }
+  ],
+  "errors": [
+    {
+      "day": "Martes",
+      "error": "Error message"
+    }
+  ]
+}
+```
+
+**Error (400 Bad Request) - Validación fallida:**
+```json
+{
+  "errors": [
+    {
+      "type": "field",
+      "msg": "El día debe ser uno de: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo",
+      "path": "schedules[0].day",
+      "location": "body"
+    }
+  ]
+}
+```
+
+**Error (401 Unauthorized) - Token no proporcionado o inválido:**
+```json
+{
+  "error": "No token provided"
+}
+```
+
+**Error (500 Internal Server Error):**
+```json
+{
+  "error": "Error al procesar los horarios",
+  "description": "Error details"
+}
+```
+
+**Validaciones y Reglas:**
+- `schedules` debe ser un array con al menos un elemento
+- `day` debe ser uno de los días válidos: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo
+- `enabled` debe ser un booleano
+- Si `enabled` es `true`, `start_time` y `end_time` son requeridos
+- Si `enabled` es `false`, `start_time` y `end_time` no son requeridos (se establecerán como `null`)
+- `start_time` y `end_time` deben tener formato HH:MM (24 horas), por ejemplo: "09:00", "18:30"
+- `start_time` debe ser menor que `end_time`
+- Si un horario ya existe para un día, se actualiza; si no existe, se crea
+
+---
+
+### 1.10.2. Obtener Todos los Horarios
+
+**Método HTTP:** `GET`
+
+**URL:** `/schedules`
+
+**Autenticación:** No requerida (endpoint público)
+
+**Descripción:** Obtiene todos los horarios de atención configurados en el sistema.
+
+**Cuerpo de la petición:** No requiere
+
+**Ejemplo de petición:**
+```bash
+GET http://localhost:3000/schedules
+```
+
+**Respuestas:**
+
+**Success (200 OK):**
+```json
+[
+  {
+    "id": 1,
+    "day": "Lunes",
+    "enabled": true,
+    "start_time": "09:00:00",
+    "end_time": "18:00:00"
+  },
+  {
+    "id": 2,
+    "day": "Martes",
+    "enabled": true,
+    "start_time": "09:00:00",
+    "end_time": "18:00:00"
+  },
+  {
+    "id": 3,
+    "day": "Domingo",
+    "enabled": false,
+    "start_time": null,
+    "end_time": null
+  }
+]
+```
+
+**Error (500 Internal Server Error):**
+```json
+{
+  "error": "Error al obtener los horarios",
+  "description": "Error details"
+}
+```
+
+---
+
+### 1.10.3. Obtener Horario de un Día Específico
+
+**Método HTTP:** `GET`
+
+**URL:** `/schedules/:day`
+
+**Autenticación:** No requerida (endpoint público)
+
+**Descripción:** Obtiene el horario de atención configurado para un día específico de la semana.
+
+**Parámetros de URL:**
+- `day` (string, requerido): Día de la semana. Valores permitidos: "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
+
+**Cuerpo de la petición:** No requiere
+
+**Ejemplo de petición:**
+```bash
+GET http://localhost:3000/schedules/Lunes
+```
+
+**Respuestas:**
+
+**Success (200 OK):**
+```json
+{
+  "id": 1,
+  "day": "Lunes",
+  "enabled": true,
+  "start_time": "09:00:00",
+  "end_time": "18:00:00"
+}
+```
+
+**Error (400 Bad Request) - Día inválido:**
+```json
+{
+  "errors": [
+    {
+      "type": "field",
+      "msg": "El día debe ser uno de: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo",
+      "path": "day",
+      "location": "params"
+    }
+  ]
+}
+```
+
+**Error (404 Not Found) - Horario no encontrado:**
+```json
+{
+  "error": "No se encontró horario para el día Lunes"
+}
+```
+
+**Error (500 Internal Server Error):**
+```json
+{
+  "error": "Error al obtener el horario",
+  "description": "Error details"
+}
+```
+
+**Validaciones y Reglas:**
+- El parámetro `day` debe ser uno de los días válidos: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo
+
+---
+
+### 1.10.4. Actualizar Horario de un Día Específico
+
+**Método HTTP:** `PUT`
+
+**URL:** `/schedules/:day`
+
+**Autenticación:** Requerida (JWT Token)
+
+**Descripción:** Actualiza el horario de atención de un día específico de la semana.
+
+**Parámetros de URL:**
+- `day` (string, requerido): Día de la semana. Valores permitidos: "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
+
+**Cuerpo de la petición (JSON):**
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `enabled` | boolean | Sí | Indica si el horario está habilitado para ese día |
+| `start_time` | string | Condicional | Hora de inicio en formato HH:MM (24 horas). Requerido si `enabled` es `true` |
+| `end_time` | string | Condicional | Hora de fin en formato HH:MM (24 horas). Requerido si `enabled` es `true` |
+
+**Headers requeridos:**
+```
+Authorization: Bearer <tu_token_jwt>
+```
+
+**Ejemplo de petición:**
+```bash
+PUT http://localhost:3000/schedules/Lunes
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "enabled": true,
+  "start_time": "10:00",
+  "end_time": "20:00"
+}
+```
+
+**Respuestas:**
+
+**Success (200 OK):**
+```json
+{
+  "message": "Horario actualizado exitosamente",
+  "schedule": {
+    "id": 1,
+    "day": "Lunes",
+    "enabled": true,
+    "start_time": "10:00:00",
+    "end_time": "20:00:00"
+  }
+}
+```
+
+**Error (400 Bad Request) - Validación fallida:**
+```json
+{
+  "errors": [
+    {
+      "type": "field",
+      "msg": "start_time debe tener formato HH:MM (24 horas)",
+      "path": "start_time",
+      "location": "body"
+    }
+  ]
+}
+```
+
+**Error (401 Unauthorized) - Token no proporcionado o inválido:**
+```json
+{
+  "error": "No token provided"
+}
+```
+
+**Error (404 Not Found) - Horario no encontrado:**
+```json
+{
+  "error": "No se encontró horario para el día Lunes"
+}
+```
+
+**Error (500 Internal Server Error):**
+```json
+{
+  "error": "Error al actualizar el horario",
+  "description": "Error details"
+}
+```
+
+**Validaciones y Reglas:**
+- `day` debe ser uno de los días válidos: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo
+- `enabled` debe ser un booleano
+- Si `enabled` es `true`, `start_time` y `end_time` son requeridos
+- Si `enabled` es `false`, `start_time` y `end_time` no son requeridos (se establecerán como `null`)
+- `start_time` y `end_time` deben tener formato HH:MM (24 horas)
+- `start_time` debe ser menor que `end_time`
+- El horario debe existir en la base de datos para poder actualizarlo
+
+---
+
+### 1.10.5. Eliminar Horario de un Día Específico
+
+**Método HTTP:** `DELETE`
+
+**URL:** `/schedules/:day`
+
+**Autenticación:** Requerida (JWT Token)
+
+**Descripción:** Elimina permanentemente el horario de atención de un día específico de la base de datos.
+
+**Parámetros de URL:**
+- `day` (string, requerido): Día de la semana. Valores permitidos: "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
+
+**Cuerpo de la petición:** No requiere
+
+**Headers requeridos:**
+```
+Authorization: Bearer <tu_token_jwt>
+```
+
+**Ejemplo de petición:**
+```bash
+DELETE http://localhost:3000/schedules/Lunes
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Respuestas:**
+
+**Success (200 OK):**
+```json
+{
+  "message": "Horario del día Lunes eliminado exitosamente"
+}
+```
+
+**Error (400 Bad Request) - Día inválido:**
+```json
+{
+  "errors": [
+    {
+      "type": "field",
+      "msg": "El día debe ser uno de: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo",
+      "path": "day",
+      "location": "params"
+    }
+  ]
+}
+```
+
+**Error (401 Unauthorized) - Token no proporcionado o inválido:**
+```json
+{
+  "error": "No token provided"
+}
+```
+
+**Error (404 Not Found) - Horario no encontrado:**
+```json
+{
+  "error": "No se encontró horario para el día Lunes"
+}
+```
+
+**Error (500 Internal Server Error):**
+```json
+{
+  "error": "Error al eliminar el horario",
+  "description": "Error details"
+}
+```
+
+**Validaciones y Reglas:**
+- El parámetro `day` debe ser uno de los días válidos: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo
+- El horario debe existir en la base de datos para poder eliminarlo
+
+---
+
+## 1.11. Resumen de Seguridad y Autenticación
+
+### 1.11.1. Autenticación JWT
 
 La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticación es:
 
@@ -1619,6 +2073,9 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
 - `GET /administrators` - Obtener administradores
 - `POST /administrators/logout` - Cerrar sesión
 - `DELETE /administrators/delete/:admin_code` - Eliminar administrador
+- `POST /schedules` - Crear o actualizar horarios
+- `PUT /schedules/:day` - Actualizar horario de un día
+- `DELETE /schedules/:day` - Eliminar horario de un día
 
 **Endpoints que requieren token de orden:**
 - `POST /orders/add` - Agregar orden (requiere header `x-order-key`)
@@ -1628,10 +2085,12 @@ La API utiliza JSON Web Tokens (JWT) para autenticación. El flujo de autenticac
 - `GET /products/:typePath` - Obtener productos
 - `GET /products/searchSizes/:id` - Buscar tamaños de producto
 - `GET /companions` - Obtener acompañantes
+- `GET /schedules` - Obtener todos los horarios
+- `GET /schedules/:day` - Obtener horario de un día específico
 - `POST /orders/generateToken` - Generar token de orden
 - `POST /administrators/login` - Iniciar sesión
 
-### 1.10.2. Rate Limiting
+### 1.11.2. Rate Limiting
 
 La API implementa rate limiting para prevenir abuso y ataques de fuerza bruta:
 
@@ -1641,7 +2100,7 @@ La API implementa rate limiting para prevenir abuso y ataques de fuerza bruta:
 
 El rate limiting se aplica globalmente a todos los endpoints de la API.
 
-### 1.10.3. Variables de Entorno de Seguridad
+### 1.11.3. Variables de Entorno de Seguridad
 
 Asegúrate de configurar las siguientes variables de entorno:
 
@@ -1652,7 +2111,7 @@ Asegúrate de configurar las siguientes variables de entorno:
 - `TWILIO_PHONE`: Número de teléfono de Twilio en formato WhatsApp (ej: `whatsapp:+1234567890`)
 - `COMPANY_PHONE`: Número de destino para recibir notificaciones de WhatsApp (ej: `whatsapp:+1234567890`)
 
-### 1.10.4. Notificaciones de WhatsApp
+### 1.11.4. Notificaciones de WhatsApp
 
 La API integra notificaciones automáticas de WhatsApp mediante Twilio. Cuando se crea una nueva orden mediante el endpoint `POST /orders/add`, se envía automáticamente un mensaje de WhatsApp al número configurado en `COMPANY_PHONE` con un mensaje formateado que incluye:
 
@@ -1669,17 +2128,17 @@ El mensaje se genera automáticamente usando la función `prepareOrderMessage` y
 
 ---
 
-## 1.11. Resumen de Validaciones
+## 1.12. Resumen de Validaciones
 
-### 1.11.1. Validaciones Comunes
+### 1.12.1. Validaciones Comunes
 
 - **Strings**: Todos los campos de tipo string son automáticamente recortados (trimmed) para eliminar espacios en blanco al inicio y al final.
 - **Longitudes mínimas**: La mayoría de campos de texto requieren un mínimo de 3 caracteres después del trim.
 - **Campos opcionales en edición**: Al editar recursos, todos los campos son opcionales. Solo se actualizarán los campos proporcionados en el cuerpo de la petición.
 
-### 1.11.2. Validaciones Específicas por Entidad
+### 1.12.2. Validaciones Específicas por Entidad
 
-#### 1.11.2.1. Productos
+#### 1.12.2.1. Productos
 - `name`: Requerido al agregar, mínimo 3 caracteres
 - `description`: Requerido al agregar, mínimo 3 caracteres
 - `price`: Debe ser numérico, requerido al agregar
@@ -1688,11 +2147,11 @@ El mensaje se genera automáticamente usando la función `prepareOrderMessage` y
 - `product_sizes`: Objeto opcional con tamaños y precios del producto (ej: `{"small": 10.99, "medium": 15.99, "large": 20.99}`)
 - `highlight`: Booleano requerido para actualizar estado de destacado
 
-#### 1.11.2.2. Acompañantes
+#### 1.12.2.2. Acompañantes
 - `name`: Requerido al agregar, mínimo 3 caracteres
 - `extra_price`: Numérico, puede ser 0, requerido al agregar
 
-#### 1.11.2.3. Órdenes
+#### 1.12.2.3. Órdenes
 - `client_name`: Requerido al agregar, entre 3 y 20 caracteres
 - `client_email`: Requerido al agregar, email válido entre 5 y 50 caracteres
 - `client_phone`: Requerido al agregar, entre 3 y 20 caracteres
@@ -1704,7 +2163,7 @@ El mensaje se genera automáticamente usando la función `prepareOrderMessage` y
 - **Token de orden**: Requerido para crear órdenes. Debe obtenerse mediante `POST /orders/generateToken` y usarse dentro de 10 segundos
 - **Nota**: El campo `order_msg` se genera automáticamente a partir de los datos del cliente y del carrito de compras
 
-#### 1.11.2.4. Administradores
+#### 1.12.2.4. Administradores
 - `account_name`: Requerido para login, entre 4 y 15 caracteres
 - `account_password`: Requerido para login, entre 8 y 25 caracteres
 - **Protección contra fuerza bruta**: Después de 5 intentos fallidos, la cuenta se bloquea temporalmente con tiempo progresivo
@@ -1713,11 +2172,20 @@ El mensaje se genera automáticamente usando la función `prepareOrderMessage` y
 - **Revocación de tokens**: Los tokens pueden ser revocados mediante el endpoint de logout
 
 **Por motivos de seguridad, la creación de administradores se realiza exclusivamente desde la base de datos y no a través de la API. Para añadir un nuevo administrador, primero debes generar una contraseña cifrada (bcrypt).**
+
+#### 1.12.2.5. Horarios de Atención
+- `day`: Debe ser uno de los días válidos: "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
+- `enabled`: Debe ser un booleano
+- `start_time`: Requerido si `enabled` es `true`. Debe tener formato HH:MM (24 horas), por ejemplo: "09:00", "18:30"
+- `end_time`: Requerido si `enabled` es `true`. Debe tener formato HH:MM (24 horas), por ejemplo: "09:00", "18:30"
+- **Validación de rango**: `start_time` debe ser menor que `end_time`
+- **Condicional**: Si `enabled` es `false`, `start_time` y `end_time` no son requeridos y se establecerán como `null`
+- **Formato de hora**: Las horas deben estar en formato de 24 horas (00:00 a 23:59)
 ---
 
-## 1.12. Notas Adicionales
+## 1.13. Notas Adicionales
 
-### 1.12.1. Límites de Tamaño
+### 1.13.1. Límites de Tamaño
 
 El servidor está configurado para aceptar cuerpos de petición de hasta **3MB** tanto para JSON como para datos URL-encoded. Esto es útil para la carga de imágenes en productos.
 

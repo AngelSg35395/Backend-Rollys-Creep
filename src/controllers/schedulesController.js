@@ -1,7 +1,7 @@
 import supabase from '../config/supabase.js'
 
 /**
- * Crear o actualizar horarios de la semana
+ * Create or update schedules
  * POST /schedules
  */
 export const createOrUpdateSchedules = async (req, res) => {
@@ -10,7 +10,7 @@ export const createOrUpdateSchedules = async (req, res) => {
 
         if (!schedules || !Array.isArray(schedules) || schedules.length === 0) {
             return res.status(400).json({
-                error: 'Debe proporcionar al menos un horario',
+                error: 'Must provide at least one schedule',
             });
         }
 
@@ -20,7 +20,7 @@ export const createOrUpdateSchedules = async (req, res) => {
         for (const schedule of schedules) {
             const { day, enabled, start_time, end_time } = schedule;
 
-            // Preparar datos para insertar/actualizar
+            // Prepare data to insert/update
             const scheduleData = {
                 day,
                 enabled,
@@ -29,19 +29,19 @@ export const createOrUpdateSchedules = async (req, res) => {
             };
 
             try {
-                // Verificar si el horario ya existe
+                // Check if the schedule already exists
                 const { data: existingSchedule, error: fetchError } = await supabase
                     .from('schedules')
                     .select('*')
                     .eq('day', day)
                     .single();
 
-                if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
+                if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned (No rows were returned)
                     throw fetchError;
                 }
 
                 if (existingSchedule) {
-                    // Actualizar horario existente
+                    // Update existing schedule
                     const { data, error } = await supabase
                         .from('schedules')
                         .update(scheduleData)
@@ -55,7 +55,7 @@ export const createOrUpdateSchedules = async (req, res) => {
                         results.push(data);
                     }
                 } else {
-                    // Crear nuevo horario
+                    // Create new schedule
                     const { data, error } = await supabase
                         .from('schedules')
                         .insert([scheduleData])
@@ -75,33 +75,33 @@ export const createOrUpdateSchedules = async (req, res) => {
 
         if (errors.length > 0 && results.length === 0) {
             return res.status(500).json({
-                error: 'Error al procesar los horarios',
+                error: 'Error processing schedules',
                 details: errors,
             });
         }
 
         if (errors.length > 0) {
             return res.status(207).json({ // 207 Multi-Status
-                message: 'Algunos horarios se procesaron correctamente',
+                message: 'Some schedules were processed correctly',
                 success: results,
                 errors: errors,
             });
         }
 
         return res.status(200).json({
-            message: 'Horarios creados/actualizados exitosamente',
+            message: 'Schedules created/updated successfully',
             schedules: results,
         });
     } catch (err) {
         return res.status(500).json({
-            error: 'Error al procesar los horarios',
+            error: 'Error processing schedules',
             description: err.message,
         });
     }
 };
 
 /**
- * Obtener todos los horarios configurados
+ * Get all schedules
  * GET /schedules
  */
 export const getAllSchedules = async (req, res) => {
@@ -113,7 +113,7 @@ export const getAllSchedules = async (req, res) => {
 
         if (error) {
             return res.status(500).json({
-                error: 'Error al obtener los horarios',
+                error: 'Error getting all schedules',
                 description: error.message,
             });
         }
@@ -121,14 +121,14 @@ export const getAllSchedules = async (req, res) => {
         return res.json(data);
     } catch (err) {
         return res.status(500).json({
-            error: 'Error al obtener los horarios',
+            error: 'Error getting all schedules',
             description: err.message,
         });
     }
 };
 
 /**
- * Obtener el horario de un día específico
+ * Get schedule by day
  * GET /schedules/:day
  */
 export const getScheduleByDay = async (req, res) => {
@@ -144,11 +144,11 @@ export const getScheduleByDay = async (req, res) => {
         if (error) {
             if (error.code === 'PGRST116') {
                 return res.status(404).json({
-                    error: `No se encontró horario para el día ${day}`,
+                    error: `No schedule found for the day ${day}`,
                 });
             }
             return res.status(500).json({
-                error: 'Error al obtener el horario',
+                error: 'Error getting schedule by day',
                 description: error.message,
             });
         }
@@ -156,14 +156,14 @@ export const getScheduleByDay = async (req, res) => {
         return res.json(data);
     } catch (err) {
         return res.status(500).json({
-            error: 'Error al obtener el horario',
+            error: 'Error getting schedule by day',
             description: err.message,
         });
     }
 };
 
 /**
- * Actualizar el horario de un día específico
+ * Update schedule by day
  * PUT /schedules/:day
  */
 export const updateScheduleByDay = async (req, res) => {
@@ -171,7 +171,7 @@ export const updateScheduleByDay = async (req, res) => {
         const { day } = req.params;
         const { enabled, start_time, end_time } = req.body;
 
-        // Verificar si el horario existe
+        // Check if the schedule exists
         const { data: existingSchedule, error: fetchError } = await supabase
             .from('schedules')
             .select('*')
@@ -181,16 +181,16 @@ export const updateScheduleByDay = async (req, res) => {
         if (fetchError) {
             if (fetchError.code === 'PGRST116') {
                 return res.status(404).json({
-                    error: `No se encontró horario para el día ${day}`,
+                    error: `No schedule found for the day ${day}`,
                 });
             }
             return res.status(500).json({
-                error: 'Error al buscar el horario',
+                error: 'Error getting schedule by day',
                 description: fetchError.message,
             });
         }
 
-        // Preparar datos para actualizar
+        // Prepare data to update
         const scheduleData = {
             enabled,
             start_time: enabled ? start_time : null,
@@ -206,32 +206,32 @@ export const updateScheduleByDay = async (req, res) => {
 
         if (error) {
             return res.status(500).json({
-                error: 'Error al actualizar el horario',
+                error: 'Error updating schedule by day',
                 description: error.message,
             });
         }
 
         return res.json({
-            message: 'Horario actualizado exitosamente',
+            message: 'Schedule updated successfully',
             schedule: data,
         });
     } catch (err) {
         return res.status(500).json({
-            error: 'Error al actualizar el horario',
+            error: 'Error updating schedule by day',
             description: err.message,
         });
     }
 };
 
 /**
- * Deshabilitar o eliminar el horario de un día
+ * Disable or delete schedule by day
  * DELETE /schedules/:day
  */
 export const deleteScheduleByDay = async (req, res) => {
     try {
         const { day } = req.params;
 
-        // Verificar si el horario existe
+        // Check if the schedule exists
         const { data: existingSchedule, error: fetchError } = await supabase
             .from('schedules')
             .select('*')
@@ -241,16 +241,16 @@ export const deleteScheduleByDay = async (req, res) => {
         if (fetchError) {
             if (fetchError.code === 'PGRST116') {
                 return res.status(404).json({
-                    error: `No se encontró horario para el día ${day}`,
+                    error: `No schedule found for the day ${day}`,
                 });
             }
             return res.status(500).json({
-                error: 'Error al buscar el horario',
+                error: 'Error getting schedule by day',
                 description: fetchError.message,
             });
         }
 
-        // Eliminar el horario
+        // Delete the schedule
         const { error } = await supabase
             .from('schedules')
             .delete()
@@ -258,17 +258,17 @@ export const deleteScheduleByDay = async (req, res) => {
 
         if (error) {
             return res.status(500).json({
-                error: 'Error al eliminar el horario',
+                error: 'Error deleting schedule by day',
                 description: error.message,
             });
         }
 
         return res.json({
-            message: `Horario del día ${day} eliminado exitosamente`,
+            message: `Schedule for the day ${day} deleted successfully`,
         });
     } catch (err) {
         return res.status(500).json({
-            error: 'Error al eliminar el horario',
+            error: 'Error deleting schedule by day',
             description: err.message,
         });
     }

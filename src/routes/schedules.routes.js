@@ -16,19 +16,19 @@ import {
 
 const router = express.Router()
 
-// Crear o actualizar horarios de la semana
+// Create or update schedules
 router.post('/', verifyToken, scheduleValidatorPOST, validationResultHandler, createOrUpdateSchedules)
 
-// Obtener todos los horarios configurados
+// Get all schedules
 router.get('/', getAllSchedules)
 
-// Obtener el horario de un día específico
+// Get schedule by day
 router.get('/:day', scheduleValidatorDay, validationResultHandler, getScheduleByDay)
 
-// Actualizar el horario de un día específico
+// Update schedule by day
 router.put('/:day', verifyToken, scheduleValidatorPUT, validationResultHandler, updateScheduleByDay)
 
-// Eliminar el horario de un día específico
+// Delete schedule by day
 router.delete('/:day', verifyToken, scheduleValidatorDay, validationResultHandler, deleteScheduleByDay)
 
 export default router
