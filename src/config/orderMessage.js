@@ -29,7 +29,7 @@ export function prepareOrderMessage({ client_name, client_email, client_phone, d
 — Email: ${client_email}
 — Teléfono: ${client_phone}
 — Fecha de recogida: ${delivery_date}
-— Hora de recogida: ${delivery_time}
+— Hora de recogida: ${rebuildTime(delivery_time)}
 — Método de pago: ${payment_method}
 
     🛒 *Productos solicitados*
@@ -39,4 +39,15 @@ ${itemsSummary || '— (ningún producto en el carrito)'}
 `;
 
     return orderMessage;
+}
+
+export function rebuildTime(delivery_time) {
+    if (!delivery_time) return '';
+    // Extract HH:MM from HH:MM:SS format if needed
+    const time = delivery_time.substring(0, 5);
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
 }
