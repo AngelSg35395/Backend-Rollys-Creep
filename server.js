@@ -17,11 +17,11 @@ const app = express()
 const port = process.env.PORT || 3000
 
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGIN,
+    origin: '*', // process.env.ALLOWED_ORIGIN
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-order-key'],
 }))
-app.use(securityOrigin)
+// app.use(securityOrigin)
 app.use(express.json({ limit: '3mb' }))
 app.use(express.urlencoded({ limit: '3mb', extended: true }))
 
@@ -48,6 +48,7 @@ import productsRoutes from './src/routes/products.routes.js'
 import companionsRoutes from './src/routes/companions.routes.js'
 import ordersRoutes from './src/routes/orders.routes.js'
 import administratorsRoutes from './src/routes/administrators.routes.js'
+import schedulesRoutes from './src/routes/schedules.routes.js'
 
 
 app.use('/', rootRoutes)
@@ -55,6 +56,7 @@ app.use('/products', productsRoutes)
 app.use('/companions', companionsRoutes)
 app.use('/orders', ordersRoutes)
 app.use('/administrators', administratorsRoutes)
+app.use('/schedules', schedulesRoutes)
 
 /**
  * Start Server

@@ -1,5 +1,7 @@
 import { body } from "express-validator";
 
+const productTypes = ["Bananas", "Eskimos", "StrawberriesFruit", "Frappes", "Rolls"];
+
 export const productValidatorADD = [
     body("name")
         .isString()
@@ -19,10 +21,8 @@ export const productValidatorADD = [
         .isFloat({ min: 0, max: 1000 })
         .withMessage("El precio del producto debe ser un número entre 0 y 1000"),
     body("product_type")
-        .isString()
-        .trim()
-        .notEmpty()
-        .withMessage("El tipo de producto no puede estar vacío"),
+        .isIn(productTypes)
+        .withMessage(`El tipo de producto debe ser uno de: ${productTypes.join(', ')}`),
     body("product_sizes")
         .isArray()
         .notEmpty()
@@ -49,10 +49,8 @@ export const productValidatorEDIT = [
         .withMessage("El precio del producto debe ser un número entre 0 y 1000"),
     body("product_type")
         .optional()
-        .isString()
-        .trim()
-        .notEmpty()
-        .withMessage("El tipo de producto no puede estar vacío"),
+        .isIn(productTypes)
+        .withMessage(`El tipo de producto debe ser uno de: ${productTypes.join(', ')}`),
     body("product_sizes")
         .optional()
         .isArray()
