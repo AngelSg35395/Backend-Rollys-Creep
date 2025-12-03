@@ -5,7 +5,7 @@ export const getProductsType = async (req, res) => {
     try {
         const type = req.params.typePath
 
-        let query = supabase.from('products').select('*').order('product_id')
+        let query = supabase.from('products').select('*').order('product_id', { ascending: true })
 
         if (type === 'initialProducts') {
             query = query.is('initially_show', true)
