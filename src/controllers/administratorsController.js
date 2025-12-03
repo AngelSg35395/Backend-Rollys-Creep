@@ -6,7 +6,7 @@ export const getAdministrators = async (req, res) => {
     const { data, error } = await supabase
         .from('administrators')
         .select('admin_code, account_name, created_at')
-        .order('created_at')
+        .order('created_at', { ascending: false })
 
     if (error) {
         res.status(500).json({ error: 'Error fetching administrators' + error })

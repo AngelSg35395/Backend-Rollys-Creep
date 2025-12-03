@@ -6,7 +6,7 @@ export const getOrders = async (req, res) => {
     try {
         const type = req.params.typePath
 
-        let query = supabase.from('orders').select('*').order('order_id')
+        let query = supabase.from('orders').select('*').order('created_at', { ascending: false })
 
         if (type === 'completed') {
             query = query.is('order_state', true)
@@ -43,7 +43,6 @@ export const editOrder = async (req, res) => {
             .from('orders')
             .update({ order_state })
             .eq('order_id', id)
-            .order('created_at', { ascending: true })
 
         if (error) {
             return res.status(500).json({

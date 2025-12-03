@@ -5,7 +5,7 @@ export const getCompanions = async (req, res) => {
         const { data, error } = await supabase
             .from('companions')
             .select('*')
-            .order('companion_id')
+            .order('companion_id', { ascending: false })
 
         if (error) {
             return res.status(500).json({
